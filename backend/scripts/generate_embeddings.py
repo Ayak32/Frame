@@ -16,6 +16,7 @@ import time
 import argparse
 from pathlib import Path
 from typing import Optional, List, Dict, Any, Tuple
+from config import openai_client, embedding_model, supabase, BATCH_SIZE, PAGE_SIZE, COST_PER_M_TOKEN
 
 # Project root on path
 project_root = Path(__file__).resolve().parent.parent.parent
@@ -24,34 +25,11 @@ sys.path.insert(0, str(project_root))
 from dotenv import load_dotenv
 load_dotenv()
 
-from supabase import create_client
-from openai import OpenAI
-
 from backend.app.services.text_extractor import build_embedding_text_on_view, build_embedding_text_off_view
-
-# Config from env
-import os
-SB_URL = os.getenv("SB_URL")
-SB_SECRET_KEY = os.getenv("SB_SECRET_KEY")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
-BATCH_SIZE = int(os.getenv("EMBEDDING_BATCH_SIZE", "100"))  # objects per OpenAI API call
-PAGE_SIZE = 500  # objects per Supabase fetch
-
-# Approximate cost for text-embedding-3-small (USD per 1M tokens)
-COST_PER_M_TOKEN = 0.02
 
 
 def get_supabase():
-    if not SB_URL or not SB_SECRET_KEY:
-        raise ValueError("SB_URL and SB_SECRET_KEY must be set in .env")
-    return create_client(SB_URL, SB_SECRET_KEY)
-
-
-def get_openai():
-    if not OPENAI_API_KEY:
-        raise ValueError("OPENAI_API_KEY must be set in .env")
-    return OpenAI(api_key=OPENAI_API_KEY)
+    return supabase
 
 
 def count_tokens_approx(text: str) -> int:
@@ -112,11 +90,11 @@ def build_texts_for_objects(
     return out
 
 
-def get_embeddings(openai_client: OpenAI, texts: List[str]) -> List[List[float]]:
+def get_embeddings(texts: List[str]) -> List[List[float]]:
     """Call OpenAI embeddings API for a batch of texts. Returns list of vectors."""
     if not texts:
         return []
-    r = openai_client.embeddings.create(model=EMBEDDING_MODEL, input=texts)
+    r = openai_client.embeddings.create(model=embedding_model, input=texts)
     # Preserve order by index
     by_index = {e.index: e.embedding for e in r.data}
     return [by_index[i] for i in range(len(texts))]
@@ -131,7 +109,6 @@ def update_embeddings(supabase, table: str, id_embedding_pairs: List[tuple]) -> 
 def run_table(
     table: str,
     supabase,
-    openai_client: OpenAI,
     *,
     limit: Optional[int] = None,
     skip_existing: bool = True,
@@ -185,7 +162,7 @@ def run_table(
                 print(f"  [dry run] Would embed {len(chunk_ids)} objects (~{tokens} tokens). Running total: {total_processed} objects, ~{total_tokens} tokens, ~${cost:.4f}")
                 continue
 
-            embeddings = get_embeddings(openai_client, chunk_texts)
+            embeddings = get_embeddings(chunk_texts)
             id_embedding_pairs = list(zip(chunk_ids, embeddings))
             update_embeddings(supabase, table, id_embedding_pairs)
             total_processed += len(chunk_ids)
@@ -221,7 +198,6 @@ def main():
 
     try:
         supabase = get_supabase()
-        openai_client = None if args.dry_run else get_openai()
     except Exception as e:
         print("Error initializing clients: %s" % e)
         sys.exit(1)
@@ -237,7 +213,6 @@ def main():
             run_table(
                 table,
                 supabase,
-                openai_client,
                 limit=args.limit,
                 skip_existing=not args.no_skip_existing,
                 dry_run=args.dry_run,

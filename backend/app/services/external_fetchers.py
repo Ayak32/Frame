@@ -20,7 +20,7 @@ REQUESTS_HEADERS = {
 }
 
 
-def fetch_person(uri: str) -> Dict[str, Any]:
+def fetch_artist(uri: str) -> Dict[str, Any]:
     """
     Fetch a Yale Linked Art person/creator record and extract relevant data.
     

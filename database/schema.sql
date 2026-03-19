@@ -129,6 +129,46 @@ CREATE INDEX IF NOT EXISTS idx_visual_item_extracted_text on visual_items(extrac
 CREATE INDEX IF NOT EXISTS idx_external_uri_uri on external_uris(uri);
 CREATE INDEX IF NOT EXISTS idx_external_uri_uri_type on external_uris(uri_type);
 
+-- semantic search helper
+CREATE OR REPLACE FUNCTION match_objects(
+    search_table TEXT,
+    query_embedding vector(1536),
+    match_count INTEGER DEFAULT 10
+)
+RETURNS TABLE (
+    id TEXT,
+    title TEXT,
+    creator_name TEXT,
+    creator_id TEXT,
+    classification TEXT[],
+    distance DOUBLE PRECISION
+)
+LANGUAGE plpgsql
+STABLE
+AS $$
+BEGIN
+    IF search_table NOT IN ('objects_on_view', 'objects_off_view') THEN
+        RAISE EXCEPTION 'Unsupported search table: %', search_table;
+    END IF;
+
+    RETURN QUERY EXECUTE format(
+        'SELECT
+            id,
+            title,
+            creator_name,
+            creator_id,
+            classification,
+            (text_embedding <=> $1) AS distance
+         FROM %I
+         WHERE text_embedding IS NOT NULL
+         ORDER BY text_embedding <=> $1
+         LIMIT $2',
+        search_table
+    )
+    USING query_embedding, match_count;
+END;
+$$;
+
 -- Gallery layout (for pathfinding)
 CREATE TABLE IF NOT EXISTS galleries (
     id SERIAL PRIMARY KEY,
