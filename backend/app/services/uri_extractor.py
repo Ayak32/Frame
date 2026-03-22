@@ -7,7 +7,7 @@ This module provides functions to extract various types of URIs from Linked Art 
 - External URIs (Wikidata, Getty ULAN, Library of Congress) - works on both object and person records
 """
 
-from typing import Dict, Any, List, Set
+from typing import Any, Dict, List, Optional, Set
 
 
 def _classify_uri_type(uri: str) -> str:
@@ -198,7 +198,38 @@ def extract_external_uris(linked_art_json: Dict[str, Any]) -> List[Dict[str, Any
     
     return external_uris
 
-
+def extract_image_url(linked_art_json: Dict[str, Any]) -> Optional[str]:
+    """
+    Extract the image URL from the linked_art_json.
+    """
+    representation = linked_art_json.get('representation')
+    if not isinstance(representation, list):
+        return None
+    
+    for rep in representation:
+        if not isinstance(rep, dict):
+            continue
+        
+        digitally_shown_by = rep.get('digitally_shown_by', [])
+        if not isinstance(digitally_shown_by, list):
+            continue
+        
+        for dobj in digitally_shown_by:
+            if not isinstance(dobj, dict):
+                continue
+            if dobj.get('type') != 'DigitalObject':
+                continue
+  
+            access_point = dobj.get('access_point', [])
+            if not isinstance(access_point, list):
+                continue
+            
+            for ap in access_point:
+                if isinstance(ap, dict) and ap.get('id'):
+                    return ap.get('id')
+    return None
+        
+    
 def extract_all_uris(linked_art_json: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     Comprehensive extraction of all URIs from an object record.

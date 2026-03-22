@@ -10,10 +10,16 @@ from backend.app.services.rag_service import call_llm, retrieve_objects
 
 TOUR_SYSTEM_PROMPT= """You are a knowledgeable guide at the Yale University Art Gallery. Create a tour of the gallery using only the provided object context. If the user's query includes a cultural request (for example, "I'm interested in American portraiture"), prioritize objects from that cultural period. Return the tour in the following JSON format. Object_id must be copied exactly from provided context; do not invent IDs: {
   "tour": [
-    {"object_id": "...", "title": "...", "narrative": "...", "order": 1, "room_number": "..."},
+    {"object_id": "...", "title": "...", "narrative": "...", "order": 1, "gallery_number": "..."},
     ...
   ]
 }
+
+Here is some additional context about art history that may be useful depending on the user's query:
+- impressionism is a style of painting that emerged in the late 19th century in France. It is characterized by the use of bright colors and loose brushstrokes.
+- impressionist artists include Claude Monet, Pierre-Auguste Renoir, Edgar Degas, Camille Pissarro, Berthe Morisot, Alfred Sisley, Gustave Caillebotte, Edouard Manet, Paul Cézanne, among others.
+- Like their French counterparts, the American Impressionists each had their own distinct style, and depicted a range of subjects, from interior scenes to landscapes. In both France and America, classically Impressionist subjects emerged. Many American Impressionists painted the New England coastline, exploring the effect of light on water, as Monet had in France. The views they captured, however, were distinctly New World.
+- American impressionist artist include John Singer Sargent, Childe Hassam, William Merritt Chase, Mary Cassatt, James McNeill Whistler, Joseph Pennell, Thomas Wilmer Dewing, Mary Nimmo Moran, Thomas Moran, among others
 """
 
 
@@ -49,48 +55,6 @@ Return ONLY valid JSON with this exact shape:
 
 def calulate_object_limit(time_limit):
     return int(time_limit / 4)
-
-
-# def _validate_and_repair_tour_ids(
-#     tour_payload: Optional[Dict[str, Any]],
-#     retrieved_objects: List[Dict[str, Any]],
-# ) -> Dict[str, Any]:
-#     if not tour_payload:
-#         return {"tour": []}
-
-#     allowed_ids = {
-#         str((ctx.get("object") or {}).get("id"))
-#         for ctx in retrieved_objects
-#         if (ctx.get("object") or {}).get("id") is not None
-#     }
-#     id_by_title = {
-#         ((ctx.get("object") or {}).get("title") or "").strip().lower(): str((ctx.get("object") or {}).get("id"))
-#         for ctx in retrieved_objects
-#         if (ctx.get("object") or {}).get("id") is not None
-#     }
-
-#     repaired_stops: List[Dict[str, Any]] = []
-#     for stop in tour_payload.get("tour", []):
-#         if not isinstance(stop, dict):
-#             continue
-
-#         candidate_id = stop.get("object_id")
-#         candidate_id_str = str(candidate_id) if candidate_id is not None else None
-
-#         if candidate_id_str in allowed_ids:
-#             stop["object_id"] = candidate_id_str
-#             repaired_stops.append(stop)
-#             continue
-
-    #     title_key = (stop.get("title") or "").strip().lower()
-    #     canonical_id = id_by_title.get(title_key)
-    #     if canonical_id:
-    #         stop["object_id"] = canonical_id
-    #         repaired_stops.append(stop)
-
-    # repaired = dict(tour_payload)
-    # repaired["tour"] = repaired_stops
-    # return repaired
 
 
 def generate_tour_narrative_with_context(
