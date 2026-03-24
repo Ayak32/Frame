@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS objects_on_view (
     title TEXT,  -- Extracted from _label
     creator_id TEXT,  -- Extracted from produced_by.part[].carried_out_by[].id
     creator_name TEXT,  -- Extracted from produced_by.part[].carried_out_by[]._label
+    visual_item_id TEXT,
     accession_number TEXT,  -- Acquisition number (e.g., "1832.3")
     system_number TEXT,  -- System-assigned number for URL (e.g., "69")
     classification TEXT[],  -- Array of classifications (e.g., ["Paintings", "portraits"])
@@ -19,8 +20,8 @@ CREATE TABLE IF NOT EXISTS objects_on_view (
     dimensions_text TEXT,  -- Human-readable dimensions (e.g., "21 1/4 × 31 1/4 in.")
     culture TEXT,  -- Culture classification (e.g., "American")
     period TEXT,  -- Period classification (e.g., "18th century")
-    gallery_location TEXT,  -- Gallery/room name (to be populated from gallery layout data)
-    room_number TEXT,  -- Room identifier (e.g., "137", "131a", "137-13")
+    image_url TEXT,  -- URL of the image of the object
+    gallery_number TEXT,  -- Gallery/room identifier (e.g., "137", "131a", "137-13")
     location_string TEXT,  -- Full location description from CSV
     room_base_number INTEGER,  -- Numeric part of room number for filtering (e.g., 137 from "137-13")
     case_number INTEGER,  -- Case number if present (e.g., 13 from "137-13"), NULL if not applicable
@@ -94,10 +95,42 @@ CREATE TABLE IF NOT EXISTS external_uris (
 );
 
 
--- Create indexes for fast queries
+-- Gallery layout (for pathfinding / map overlay)
+-- Uniqueness is (floor_number, gallery_number): same gallery label may exist on different floors.
+CREATE TABLE IF NOT EXISTS galleries (
+    id SERIAL PRIMARY KEY,
+    gallery_number TEXT NOT NULL,
+    floor_number INTEGER,
+    coordinates JSONB,  -- normalized { nx, ny, floor_number, ... } or legacy {x, y}
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT galleries_floor_gallery_unique UNIQUE (floor_number, gallery_number)
+);
+
+-- Gallery connections (for pathfinding graph)
+CREATE TABLE IF NOT EXISTS gallery_connections (
+    id SERIAL PRIMARY KEY,
+    from_gallery_id INTEGER REFERENCES galleries(id),
+    to_gallery_id INTEGER REFERENCES galleries(id),
+    distance_meters INTEGER,
+    walk_time_seconds INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE floor_plans (
+    id              SERIAL PRIMARY KEY,
+    ref             TEXT NOT NULL UNIQUE,   -- e.g. 'floor2_plan_v1'; matches JSON ref / app bundle id
+    floor_number    INTEGER NOT NULL,
+    image_url       TEXT NOT NULL,          -- Supabase Storage or CDN URL; or NULL if app-bundled only
+    width_px        INTEGER,                -- optional: intrinsic image size at digitization time
+    height_px       INTEGER,
+    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+
 -- On-view objects indexes
 CREATE INDEX IF NOT EXISTS idx_on_view_gallery ON objects_on_view(gallery_location);
-CREATE INDEX IF NOT EXISTS idx_on_view_room ON objects_on_view(room_number);
+CREATE INDEX IF NOT EXISTS idx_on_view_gallery_number ON objects_on_view(gallery_number);
 CREATE INDEX IF NOT EXISTS idx_on_view_room_base ON objects_on_view(room_base_number);
 CREATE INDEX IF NOT EXISTS idx_on_view_floor ON objects_on_view(floor_number);
 CREATE INDEX IF NOT EXISTS idx_on_view_creator ON objects_on_view(creator_id);
@@ -108,6 +141,7 @@ CREATE INDEX IF NOT EXISTS idx_on_view_date ON objects_on_view(date_created);  -
 CREATE INDEX IF NOT EXISTS idx_on_view_json ON objects_on_view USING GIN(linked_art_json);  -- JSON queries
 CREATE INDEX IF NOT EXISTS idx_on_view_embedding ON objects_on_view USING hnsw(text_embedding vector_l2_ops);  -- Semantic search (L2 distance)
 CREATE INDEX IF NOT EXISTS idx_on_view_has_audio ON objects_on_view(audio_guide_url) WHERE audio_guide_url IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_on_visual_item_id ON objects_on_view(visual_item_id);
 
 -- Off-view objects indexes
 CREATE INDEX IF NOT EXISTS idx_off_view_creator ON objects_off_view(creator_id);
@@ -125,6 +159,9 @@ CREATE INDEX IF NOT EXISTS idx_visual_item_id on visual_items(id);
 CREATE INDEX IF NOT EXISTS idx_visual_item_object_id on visual_items(object_id);
 CREATE INDEX IF NOT EXISTS idx_visual_item_extracted_text on visual_items(extracted_text);
 
+
+-- floor plans indexes
+CREATE INDEX IF NOT EXISTS idx_floor_plan_ref on floor_plans(ref);
 -- external uris indexes
 CREATE INDEX IF NOT EXISTS idx_external_uri_uri on external_uris(uri);
 CREATE INDEX IF NOT EXISTS idx_external_uri_uri_type on external_uris(uri_type);
@@ -133,7 +170,9 @@ CREATE INDEX IF NOT EXISTS idx_external_uri_uri_type on external_uris(uri_type);
 CREATE OR REPLACE FUNCTION match_objects(
     search_table TEXT,
     query_embedding vector(1536),
-    match_count INTEGER DEFAULT 10
+    match_count INTEGER DEFAULT 10,
+    filter_floor_number INTEGER DEFAULT NULL,
+    filter_gallery_number TEXT DEFAULT NULL
 )
 RETURNS TABLE (
     id TEXT,
@@ -146,9 +185,18 @@ RETURNS TABLE (
 LANGUAGE plpgsql
 STABLE
 AS $$
+DECLARE
+    filter_sql TEXT := 'WHERE text_embedding IS NOT NULL';
 BEGIN
     IF search_table NOT IN ('objects_on_view', 'objects_off_view') THEN
         RAISE EXCEPTION 'Unsupported search table: %', search_table;
+    END IF;
+
+    -- Location filters only apply to objects_on_view.
+    IF search_table = 'objects_on_view' THEN
+        filter_sql := filter_sql
+            || ' AND ($3 IS NULL OR floor_number = $3)'
+            || ' AND ($4 IS NULL OR gallery_number = $4)';
     END IF;
 
     RETURN QUERY EXECUTE format(
@@ -160,30 +208,13 @@ BEGIN
             classification,
             (text_embedding <=> $1) AS distance
          FROM %I
-         WHERE text_embedding IS NOT NULL
+         %s
          ORDER BY text_embedding <=> $1
          LIMIT $2',
-        search_table
+        search_table,
+        filter_sql
     )
-    USING query_embedding, match_count;
+    USING query_embedding, match_count, filter_floor_number, filter_gallery_number;
 END;
 $$;
 
--- Gallery layout (for pathfinding)
-CREATE TABLE IF NOT EXISTS galleries (
-    id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE,
-    floor_number INTEGER,
-    coordinates JSONB,  -- {x, y} or {lat, lng}
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Gallery connections (for pathfinding graph)
-CREATE TABLE IF NOT EXISTS gallery_connections (
-    id SERIAL PRIMARY KEY,
-    from_gallery_id INTEGER REFERENCES galleries(id),
-    to_gallery_id INTEGER REFERENCES galleries(id),
-    distance_meters INTEGER,
-    walk_time_seconds INTEGER,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);

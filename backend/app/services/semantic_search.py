@@ -66,12 +66,15 @@ def search_objects_by_embedding(
     limit: int = 10,
     table: str = "objects_on_view",
     *,
+    floor_number: Optional[int] = None,
+    gallery_number: Optional[str] = None,
     supabase_client=None,
 ) -> List[Dict[str, Any]]:
     """
     Search for nearest rows to an embedding.
 
-    This expects the database function `match_objects(search_table, query_embedding, match_count)`.
+    This expects the database function:
+    `match_objects(search_table, query_embedding, match_count, filter_floor_number, filter_gallery_number)`.
     """
     table = _validate_table_name(table)
     sb = supabase_client or default_supabase
@@ -83,6 +86,8 @@ def search_objects_by_embedding(
                 "search_table": table,
                 "query_embedding": list(query_embedding),
                 "match_count": limit,
+                "filter_floor_number": floor_number,
+                "filter_gallery_number": gallery_number,
             },
         ).execute()
     except Exception as exc:
@@ -103,6 +108,8 @@ def search_objects(
     limit: int = 10,
     table: str = "objects_on_view",
     *,
+    floor_number: Optional[int] = None,
+    gallery_number: Optional[str] = None,
     openai_client=None,
     supabase_client=None,
 ) -> List[Dict[str, Any]]:
@@ -114,6 +121,8 @@ def search_objects(
         query_embedding,
         limit=limit,
         table=table,
+        floor_number=floor_number,
+        gallery_number=gallery_number,
         supabase_client=supabase_client,
     )
 

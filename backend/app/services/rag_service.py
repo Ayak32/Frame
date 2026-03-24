@@ -42,9 +42,22 @@ def _fetch_visual_item_context(visual_item_id: Optional[str]) -> Optional[Dict[s
 # Retrieval
 # ---------------------------------------------------------------------------
 
-def retrieve_objects_normalized(query: str, limit: int = 10, table: str = "objects_on_view") -> List[Dict[str, Any]]:
+def retrieve_objects_normalized(
+    query: str,
+    limit: int = 10,
+    table: str = "objects_on_view",
+    *,
+    floor_number: Optional[int] = None,
+    gallery_number: Optional[str] = None,
+) -> List[Dict[str, Any]]:
     """Thin wrapper around semantic search — returns normalized hits."""
-    results = search_objects(query, limit=limit, table=table)
+    results = search_objects(
+        query,
+        limit=limit,
+        table=table,
+        floor_number=floor_number,
+        gallery_number=gallery_number,
+    )
     return [
         {
             "id": obj["id"],
@@ -63,9 +76,18 @@ def retrieve_objects(
     query: str,
     limit: int = 10,
     table: str = "objects_on_view",
+    *,
+    floor_number: Optional[int] = None,
+    gallery_number: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """Retrieve objects and hydrate each with artist, visual-item, and audio context."""
-    retrieved_objects = retrieve_objects_normalized(query, limit=limit, table=table)
+    retrieved_objects = retrieve_objects_normalized(
+        query,
+        limit=limit,
+        table=table,
+        floor_number=floor_number,
+        gallery_number=gallery_number,
+    )
     enriched = []
 
     for obj in retrieved_objects:
@@ -89,6 +111,12 @@ def retrieve_objects(
                 "description": object_row.get("dimensions_text"),
                 "audio_guide_transcript": object_row.get("audio_guide_transcript"),
                 "linked_art_json": object_row.get("linked_art_json"),
+                "gallery_number": object_row.get("gallery_number"),
+                "location_string": object_row.get("location_string"),
+                "gallery_base_number": object_row.get("gallery_base_number"),
+                "case_number": object_row.get("case_number"),
+                "floor_number": object_row.get("floor_number"),
+                "floor_label": object_row.get("floor_label"),
             },
             "artist": {
                 "name": artist_result.get("name"),
@@ -159,6 +187,16 @@ def build_user_prompt(query: str, context_objects: List[Dict[str, Any]]) -> str:
             lines.append(f"  Period: {obj['period']}")
         if obj.get("materials"):
             lines.append(f"  Materials: {_format_list(obj['materials'])}")
+        if obj.get("location_string"):
+            lines.append(f"  Location String: {obj['location_string']}")
+        if obj.get("gallery_base_number"):
+            lines.append(f"  Gallery Base Number: {obj['gallery_base_number']}")
+        if obj.get("case_number"):
+            lines.append(f"  Case Number: {obj['case_number']}")
+        if obj.get("floor_number") is not None:
+            lines.append(f"  Floor Number: {obj['floor_number']}")
+        if obj.get("floor_label"):
+            lines.append(f"  Floor Label: {obj['floor_label']}")
         if obj.get("description"):
             lines.append(f"  Description: {obj['description']}")
         if artist.get("biography_text"):

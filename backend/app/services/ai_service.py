@@ -53,17 +53,29 @@ Return ONLY valid JSON with this exact shape:
 
 
 
-def calulate_object_limit(time_limit):
-    return int(time_limit / 4)
+def calulate_object_limit(minutes):
+    return int(minutes / 6)
 
 
 def generate_tour_narrative_with_context(
     query: str,
     time_limit: int,
     use_external: bool = True,
+    floor_number: Optional[int] = None,
+    gallery_number: Optional[str] = None,
 ) -> Dict[str, Any]:
     object_limit = calulate_object_limit(time_limit)
-    retrieved_objects = retrieve_objects(query, limit=object_limit)
+    retrieved_objects = retrieve_objects(
+        query,
+        limit=object_limit,
+        floor_number=floor_number,
+        gallery_number=gallery_number,
+    )
+    # Simple fallback: if strict filters yield too few candidates, relax filters.
+    if (floor_number is not None or gallery_number is not None) and len(retrieved_objects) < object_limit:
+        relaxed = retrieve_objects(query, limit=object_limit)
+        if relaxed:
+            retrieved_objects = relaxed
 
     result = call_llm(
         query=query,
@@ -75,11 +87,19 @@ def generate_tour_narrative_with_context(
     return {"tour": result.get("parsed"), "retrieved_objects": result.get("retrieved_objects")}
 
 
-def generate_tour_narrative(query, time_limit, use_external=True):
+def generate_tour_narrative(
+    query,
+    time_limit,
+    use_external=True,
+    floor_number: Optional[int] = None,
+    gallery_number: Optional[str] = None,
+):
     return generate_tour_narrative_with_context(
         query=query,
         time_limit=time_limit,
         use_external=use_external,
+        floor_number=floor_number,
+        gallery_number=gallery_number,
     ).get("tour")
 
 
