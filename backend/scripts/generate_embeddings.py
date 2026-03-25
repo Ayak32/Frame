@@ -16,7 +16,7 @@ import time
 import argparse
 from pathlib import Path
 from typing import Optional, List, Dict, Any, Tuple
-from config import openai_client, embedding_model, supabase, BATCH_SIZE, PAGE_SIZE, COST_PER_M_TOKEN
+
 
 # Project root on path
 project_root = Path(__file__).resolve().parent.parent.parent
@@ -24,8 +24,8 @@ sys.path.insert(0, str(project_root))
 
 from dotenv import load_dotenv
 load_dotenv()
-
-from backend.app.services.text_extractor import build_embedding_text_on_view, build_embedding_text_off_view
+from backend.app.config import openai_client, embedding_model, supabase, BATCH_SIZE, PAGE_SIZE, COST_PER_M_TOKEN
+from backend.scripts.text_extractor import build_embedding_text_on_view, build_embedding_text_off_view
 
 
 def get_supabase():

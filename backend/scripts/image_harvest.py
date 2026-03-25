@@ -6,7 +6,7 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from backend.app.config import supabase
-from backend.app.services.uri_extractor import extract_image_url
+from backend.scripts.uri_extractor import extract_image_url
 
 PAGE_SIZE = 1000
 
