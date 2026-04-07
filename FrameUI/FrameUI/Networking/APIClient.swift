@@ -2,7 +2,7 @@
 //  APIClient.swift
 //  FrameUI
 //
-//  Centralized API client with global JSONEncoder/JSONDecoder strategies
+//  Centralized API client with global JSONEncoder/JSONDecoder
 //
 
 import Foundation

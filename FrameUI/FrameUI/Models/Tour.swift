@@ -8,16 +8,21 @@
 
 import Foundation
 
-// MARK: - POST /tour response
+struct TourRequest: Encodable {
+    let query: String
+    let timeLimit: Int
+    var floorNumber: Int? = nil
+    var galleryNumber: String? = nil
+}
+
 
 struct TourResponse: Decodable {
     let tour: [TourStop]
     let themes: String
     let retrievedObjects: [RetrievedObjectContext]
-    // CodingKeys synthesized: works with APIClient.decoder's convertFromSnakeCase
-    // (e.g. retrieved_objects → retrievedObjects). Do not use raw values like
-    // retrieved_objects here — that conflicts with convertFromSnakeCase.
 }
+
+
 
 /// LLM-produced stops (see TOUR_SYSTEM_PROMPT).
 struct TourStop: Decodable {
@@ -54,7 +59,6 @@ struct RetrievedObjectContext: Decodable {
     enum CodingKeys: String, CodingKey {
         case object, artist, retrieval
         case galleryCoordinates
-        /// JSON `floor_plan_image_url` → `floorPlanImageUrl` under convertFromSnakeCase (not …URL).
         case floorPlanImageURL = "floorPlanImageUrl"
         case visualItems
     }
@@ -69,9 +73,9 @@ struct TourObjectRecord: Decodable {
     let culture: String?
     let period: String?
     let materials: [String]?
-    /// Maps from DB `dimensions_text` in the API.
     let description: String?
     let audioGuideTranscript: String?
+    let imageUrl: String?
     let galleryNumber: String?
     let locationString: String?
     let galleryBaseNumber: Int?
@@ -83,6 +87,7 @@ struct TourObjectRecord: Decodable {
         case id, title, culture, period, materials, description, classification
         case creatorName, creatorId
         case audioGuideTranscript
+        case imageUrl
         case galleryNumber, locationString, galleryBaseNumber, caseNumber, floorNumber, floorLabel
     }
 }
@@ -94,9 +99,11 @@ struct GalleryCoordinates: Decodable {
     let x: Double?
     let y: Double?
     let floorNumber: Int?
+    /// Matches `FloorPlan.ref` when a floor has multiple plan images.
+    let ref: String?
 
     enum CodingKeys: String, CodingKey {
-        case nx, ny, x, y, floorNumber
+        case nx, ny, x, y, floorNumber, ref
     }
 }
 
@@ -141,151 +148,3 @@ private extension KeyedDecodingContainer {
     }
 }
 
-
-
-
-
-
-
-
-
-
-
-//import Foundation
-//
-struct TourRequest: Encodable {
-    let query: String
-    let timeLimit: Int
-    var floorNumber: Int? = nil
-    var galleryNumber: String? = nil
-}
-//
-//struct TourResponse: Decodable {
-//    let tour: [TourStop]
-//    let themes: String
-//    let retrievedObjects: [RetrievedObject]
-//    
-//    private enum CodingKeys: String, CodingKey {
-//        case tour
-//        case themes
-//        case retrievedObjects = "retrieved_objects" // adjust if backend uses snake_case
-//    }
-//}
-//
-//struct TourStop: Decodable {
-//    let objectId: String
-//    let title: String?
-//    let narrative: String?
-//    let order: Int?
-//    let galleryNumber: String?
-//    
-//    private enum CodingKeys: String, CodingKey {
-//            case objectId = "object_id"
-//            case title
-//            case narrative
-//            case order
-//            case galleryNumber = "gallery_number"
-//        }
-//}
-//
-////struct RetrievedObject: Decodable {
-////    let objectId: String
-////    let title: String?
-////    let galleryNumber: String?
-////}
-//
-//struct RetrievedObject: Decodable {
-//    let object: RetrievedObject.ObjectPayload
-//    let artist: RetrievedObject.ArtistPayload?
-//    let visualItems: [RetrievedObject.VisualItem]
-//    let galleryCoordinates: RetrievedObject.GalleryCoordinates?
-//    let floorPlanImageUrl: URL?
-//    let retrieval: RetrievedObject.Retrieval
-//
-//    private enum CodingKeys: String, CodingKey {
-//        case object
-//        case artist
-//        case visualItems = "visual_items"
-//        case galleryCoordinates = "gallery_coordinates"
-//        case floorPlanImageUrl = "floor_plan_image_url"
-//        case retrieval
-//    }
-//
-//    struct ObjectPayload: Decodable {
-//        let id: String
-//        let title: String?
-//        let creatorName: String?
-//        let creatorId: String?
-//        let classification: String?
-//        let culture: String?
-//        let period: String?
-//        let materials: String?
-//        let description: String?
-//        let audioGuideTranscript: String?
-//        let linkedArtJson: String?
-//        let galleryNumber: String?
-//        let locationString: String?
-//        let galleryBaseNumber: String?
-//        let caseNumber: String?
-//        let floorNumber: Int?
-//        let floorLabel: String?
-//
-//        private enum CodingKeys: String, CodingKey {
-//            case id
-//            case title
-//            case creatorName = "creator_name"
-//            case creatorId = "creator_id"
-//            case classification
-//            case culture
-//            case period
-//            case materials
-//            case description
-//            case audioGuideTranscript = "audio_guide_transcript"
-//            case linkedArtJson = "linked_art_json"
-//            case galleryNumber = "gallery_number"
-//            case locationString = "location_string"
-//            case galleryBaseNumber = "gallery_base_number"
-//            case caseNumber = "case_number"
-//            case floorNumber = "floor_number"
-//            case floorLabel = "floor_label"
-//        }
-//    }
-//
-//    struct ArtistPayload: Decodable {
-//        let name: String?
-//        let biographyText: String?
-//
-//        private enum CodingKeys: String, CodingKey {
-//            case name
-//            case biographyText = "biography_text"
-//        }
-//    }
-//
-//    struct VisualItem: Decodable {
-//        let id: String
-//        let styleClassifications: [String]?
-//        let depictedPlaces: [String]?
-//        let subjectMatter: [String]?
-//        let extractedText: String?
-//
-//        private enum CodingKeys: String, CodingKey {
-//            case id
-//            case styleClassifications = "style_classifications"
-//            case depictedPlaces = "depicted_places"
-//            case subjectMatter = "subject_matter"
-//            case extractedText = "extracted_text"
-//        }
-//    }
-//
-//    struct GalleryCoordinates: Decodable {
-//        // Adjust these to match the actual coordinate payload from your backend
-//        let x: Double?
-//        let y: Double?
-//        let z: Double?
-//    }
-//
-//    struct Retrieval: Decodable {
-//        let distance: Double?
-//        let similarity: Double?
-//    }
-//}
