@@ -71,11 +71,11 @@ struct FloorPlanStackView: View {
             let w = geo.size.width
             let h = geo.size.height
             ForEach(pins) { pin in
-                Image(systemName: "paintbrush.pointed.fill")
+                Image(systemName: "mappin")
                     .font(.title2)
-                    .symbolRenderingMode(.palette)
-                    .foregroundStyle(.white, .red)
-                    .shadow(color: .black.opacity(0.35), radius: 2, y: 1)
+                    .symbolRenderingMode(.monochrome)
+                    .foregroundColor(.black)
+                    .shadow(color: Color.black.opacity(0.35), radius: 2, y: 1)
                     .position(x: pin.nx * w, y: pin.ny * h)
             }
         }

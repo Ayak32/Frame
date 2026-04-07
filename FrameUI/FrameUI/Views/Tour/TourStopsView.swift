@@ -10,6 +10,23 @@ import SwiftUI
 struct TourStopsView: View {
     @EnvironmentObject private var session: TourSession
     @State private var showMap = false
+    @State private var selectedStop: SelectedStop?
+
+    private struct SelectedStop: Identifiable, Hashable {
+        let id: String
+        let title: String
+        let themes: String
+        let visitorQuery: String
+        let context: RetrievedObjectContext?
+
+        static func == (lhs: SelectedStop, rhs: SelectedStop) -> Bool {
+            lhs.id == rhs.id
+        }
+
+        func hash(into hasher: inout Hasher) {
+            hasher.combine(id)
+        }
+    }
 
 
     var body: some View {
@@ -18,24 +35,34 @@ struct TourStopsView: View {
                 List {
                     ForEach(sortedStops(from: response), id: \.objectId) { stop in
                         let context = session.context(for: stop.objectId)
-                        NavigationLink {
-                            ObjectDetailView(
-                                objectId: stop.objectId,
+                        Button {
+                            selectedStop = SelectedStop(
+                                id: stop.objectId,
                                 title: displayTitle(stop: stop, context: context),
-//                                narrative: stop.narrative,
                                 themes: response.themes,
                                 visitorQuery: session.lastVisitorQuery,
                                 context: context
                             )
-                            .environmentObject(session)
                         } label: {
                             TourStopCardRow(stop: stop, context: context)
                         }
+                        .buttonStyle(.plain)
+                        .contentShape(Rectangle())
                     }
                 }
                 .listStyle(.plain)
                 .navigationTitle("Your Tour")
                 .navigationBarTitleDisplayMode(.large)
+                .navigationDestination(item: $selectedStop) { selected in
+                    ObjectDetailView(
+                        objectId: selected.id,
+                        title: selected.title,
+                        themes: selected.themes,
+                        visitorQuery: selected.visitorQuery,
+                        context: selected.context
+                    )
+                    .environmentObject(session)
+                }
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button {
@@ -107,27 +134,13 @@ private struct TourStopCardRow: View {
         Group {
             if let s = context?.object.imageUrl,
                let url = URL(string: s) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    case .failure:
-                        placeholderIcon
-                    case .empty:
-                        ProgressView()
-                    @unknown default:
-                        placeholderIcon
-                    }
+                CachedRemoteImage(url: url, contentMode: .fill) {
+                    placeholderIcon
                 }
             } else {
                 placeholderIcon
             }
         }
-        // List rows often propose an ambiguous size; without a fixed frame, AsyncImage + scaledToFill
-        // can collapse or stay empty while the same URL loads fine on the detail screen.
-//        .frame(width: Self.thumbnailSize, height: Self.thumbnailSize)
         .frame(maxWidth: .infinity)
         .clipped()
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))

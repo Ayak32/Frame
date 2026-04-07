@@ -107,21 +107,10 @@ struct ObjectDetailView: View {
         Group {
             if let urlString = context?.object.imageUrl,
                let url = URL(string: urlString) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFit()
-                    case .failure:
-                        heroPlaceholder
-                    case .empty:
-                        ZStack {
-                            Color.secondary.opacity(0.12)
-                            ProgressView()
-                        }
-                    @unknown default:
-                        heroPlaceholder
+                CachedRemoteImage(url: url, contentMode: .fit) {
+                    ZStack {
+                        Color.secondary.opacity(0.12)
+                        ProgressView()
                     }
                 }
             } else {
