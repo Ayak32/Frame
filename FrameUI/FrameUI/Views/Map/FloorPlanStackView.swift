@@ -9,26 +9,24 @@ struct FloorPlanStackView: View {
     /// Tour /tour `retrieved_objects` used to plot `gallery_coordinates` pins.
     var tourObjects: [RetrievedObjectContext] = []
 
-    @State private var plans: [FloorPlan] = []
-    @State private var isLoading = true
-    @State private var loadFailed = false
+    @EnvironmentObject private var session: TourSession
 
     var body: some View {
         Group {
-            if isLoading {
+            if session.isLoadingFloorPlans {
                 ProgressView()
-            } else if loadFailed {
+            } else if session.floorPlansLoadFailed {
                 ContentUnavailableView(
                     "Couldn’t load floor plans",
                     systemImage: "map",
                     description: Text("Check your connection and try opening the map again.")
                 )
-            } else if plans.isEmpty {
+            } else if session.floorPlans.isEmpty {
                 ContentUnavailableView("No floor plans", systemImage: "map")
             } else {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {
-                        ForEach(plans.reversed(), id: \.ref) { plan in
+                        ForEach(session.floorPlans.reversed(), id: \.ref) { plan in
                             VStack(alignment: .leading, spacing: 0) {
                                 floorPlanImage(plan: plan, pins: pins(for: plan))
                             }
@@ -41,7 +39,7 @@ struct FloorPlanStackView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle("Floor plan")
         .navigationBarTitleDisplayMode(.inline)
-        .task { await load() }
+        .task { await session.loadFloorPlansIfNeeded() }
     }
 
     @ViewBuilder
@@ -127,22 +125,6 @@ struct FloorPlanStackView: View {
         return nil
     }
 
-    private func load() async {
-        isLoading = true
-        loadFailed = false
-        defer { isLoading = false }
-        do {
-            let res = try await fetchFloorPlans()
-            plans = res.floorPlans.sorted {
-                $0.floorNumber != $1.floorNumber
-                    ? $0.floorNumber < $1.floorNumber
-                    : $0.ref < $1.ref
-            }
-        } catch {
-            plans = []
-            loadFailed = true
-        }
-    }
 }
 
 private struct TourPin: Identifiable {
@@ -155,4 +137,5 @@ private struct TourPin: Identifiable {
     NavigationStack {
         FloorPlanStackView(tourObjects: [])
     }
+    .environmentObject(TourSession())
 }

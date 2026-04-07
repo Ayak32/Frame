@@ -22,11 +22,12 @@ struct TourStopsView: View {
                             ObjectDetailView(
                                 objectId: stop.objectId,
                                 title: displayTitle(stop: stop, context: context),
-                                narrative: stop.narrative,
+//                                narrative: stop.narrative,
                                 themes: response.themes,
                                 visitorQuery: session.lastVisitorQuery,
                                 context: context
                             )
+                            .environmentObject(session)
                         } label: {
                             TourStopCardRow(stop: stop, context: context)
                         }
@@ -48,6 +49,7 @@ struct TourStopsView: View {
                 .sheet(isPresented: $showMap) {
                     NavigationStack {
                         FloorPlanStackView(tourObjects: response.retrievedObjects)
+                            .environmentObject(session)
                             .toolbar {
                                 ToolbarItem(placement: .cancellationAction) {
                                     Button("Done") { showMap = false }
@@ -125,7 +127,8 @@ private struct TourStopCardRow: View {
         }
         // List rows often propose an ambiguous size; without a fixed frame, AsyncImage + scaledToFill
         // can collapse or stay empty while the same URL loads fine on the detail screen.
-        .frame(width: Self.thumbnailSize, height: Self.thumbnailSize)
+//        .frame(width: Self.thumbnailSize, height: Self.thumbnailSize)
+        .frame(maxWidth: .infinity)
         .clipped()
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }

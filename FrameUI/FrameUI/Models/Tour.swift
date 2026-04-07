@@ -28,19 +28,19 @@ struct TourResponse: Decodable {
 struct TourStop: Decodable {
     let objectId: String
     let title: String
-    let narrative: String
+//    let narrative: String
     let order: Int
     let galleryNumber: String?
 
     enum CodingKeys: String, CodingKey {
-        case objectId, title, narrative, order, galleryNumber
+        case objectId, title, order, galleryNumber
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         objectId = try c.decode(String.self, forKey: .objectId)
         title = try c.decode(String.self, forKey: .title)
-        narrative = try c.decode(String.self, forKey: .narrative)
+//        narrative = try c.decode(String.self, forKey: .narrative)
         order = try c.decodeLosslessInteger(forKey: .order)
         galleryNumber = try c.decodeIfPresent(String.self, forKey: .galleryNumber)
     }

@@ -9,9 +9,11 @@ import SwiftUI
 import UIKit
 
 struct ObjectDetailView: View {
+    @EnvironmentObject private var session: TourSession
+
     let objectId: String
     let title: String
-    let narrative: String
+//    let narrative: String
     let themes: String
     let visitorQuery: String
     var context: RetrievedObjectContext? = nil
@@ -32,14 +34,14 @@ struct ObjectDetailView: View {
 
                     metadataBlock
 
-                    if !narrative.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        sectionHeader("On your tour")
-                        Text(narrative)
-                            .font(.body)
-                            .foregroundStyle(.primary)
-                            .multilineTextAlignment(.leading)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+//                    if !narrative.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+//                        sectionHeader("On your tour")
+//                        Text(narrative)
+//                            .font(.body)
+//                            .foregroundStyle(.primary)
+//                            .multilineTextAlignment(.leading)
+//                            .fixedSize(horizontal: false, vertical: true)
+//                    }
 
                     if isLoadingEnriched {
                         HStack(spacing: 8) {
@@ -206,16 +208,16 @@ struct ObjectDetailView: View {
 
     private func loadEnrichedDescription() async {
         guard !objectId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+
         isLoadingEnriched = true
         enriched = nil
         defer { isLoadingEnriched = false }
         do {
-            let request = ObjectDescriptionRequest(
+            enriched = try await session.fetchObjectDescriptionCached(
                 objectId: objectId,
-                query: visitorQuery,
+                visitorQuery: visitorQuery,
                 themes: themes
             )
-            enriched = try await fetchObjectDescription(request: request)
         } catch {
             enriched = nil
         }
@@ -227,10 +229,11 @@ struct ObjectDetailView: View {
         ObjectDetailView(
             objectId: "https://example.org/obj.json",
             title: "Sample",
-            narrative: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore.",
+//            narrative: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore.",
             themes: "",
             visitorQuery: "impressionism",
             context: nil
         )
     }
+    .environmentObject(TourSession())
 }
