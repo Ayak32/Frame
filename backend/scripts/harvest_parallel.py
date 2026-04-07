@@ -108,6 +108,18 @@ def extract_object_fields(linked_art_json: Dict[str, Any]) -> Dict[str, Any]:
                 elif label == 'Period':
                     period = content
 
+
+    # Public location string
+    public_location_string = None
+    for ref in linked_art_json.get('referred_to_by', []):
+        if ref.get('type') == 'LinguisticObject':
+            content = ref.get('content', '')
+            classified_as = ref.get('classified_as', [])
+            for cls in classified_as:
+                if isinstance(cls, dict):
+                    if cls.get('id') == 'http://vocab.getty.edu/aat/300133046':
+                        public_location_string = content
+                        break
     # Audio guide
     audio_guide_transcript = None
     audio_guide_url = None

@@ -77,6 +77,21 @@ def _extract_uris_recursive(obj: Any, found_uris: Set[str], path: str = "") -> N
         for i, item in enumerate(obj):
             _extract_uris_recursive(item, found_uris, f"{path}[{i}]" if path else f"[{i}]")
 
+def extract_public_location_string(linked_art_json: Dict[str, Any]) -> Optional[str]:
+    """
+    Extract the public location string from the linked_art_json.
+    """
+    public_location_string = None
+    for ref in linked_art_json.get('referred_to_by', []):
+        if ref.get('type') == 'LinguisticObject':
+            content = ref.get('content', '')
+            classified_as = ref.get('classified_as', [])
+            for cls in classified_as:
+                if isinstance(cls, dict):
+                    if cls.get('id') == 'http://vocab.getty.edu/aat/300133046':
+                        public_location_string = content
+                        break
+    return public_location_string
 
 def extract_creator_uris(linked_art_json: Dict[str, Any]) -> List[Dict[str, Any]]:
     """

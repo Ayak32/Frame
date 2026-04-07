@@ -29,3 +29,7 @@ if not SUPABASE_URL or not SUPABASE_KEY:
     raise ValueError("SB_URL and SB_SECRET_KEY must be set in .env file")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+API_BASE_URL = os.getenv("API_BASE_URL")
+if not API_BASE_URL:
+    raise ValueError("API_BASE_URL must be set in .env file")

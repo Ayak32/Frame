@@ -178,7 +178,7 @@ def import_locations_from_csv(csv_path: str, dry_run: bool = False):
             row_count += 1
             system_number = row.get('system_number', '').strip()
             accession_number = row.get('accession_number', '').strip()
-            location_string = row.get('locationstring', '').strip()
+            private_location_string = row.get('private_location_string', '').strip()
             room = row.get('room', '').strip()
             
             if not system_number:
@@ -192,13 +192,13 @@ def import_locations_from_csv(csv_path: str, dry_run: bool = False):
             # Derive floor info
             floor_number, floor_label = derive_floor_info(room_base_number)
             
-            # Use gallery number or location_string for gallery_location
-            gallery_location = gallery_number if gallery_number else location_string
+            # Use gallery number or private_location_string for gallery_location
+            gallery_location = gallery_number if gallery_number else private_location_string
             
             update_data = {
                 'system_number': system_number,
                 'gallery_number': gallery_number,
-                'location_string': location_string if location_string else None,
+                'private_location_string': private_location_string if private_location_string else None,
                 'room_base_number': room_base_number,
                 'case_number': case_number,
                 'floor_number': floor_number,
@@ -217,7 +217,7 @@ def import_locations_from_csv(csv_path: str, dry_run: bool = False):
             print(f"Would update system_number {update['system_number']}:")
             print(f"  Gallery: {update['gallery_number']}")
             print(f"  Floor: {update['floor_number']} ({update['floor_label']})")
-            print(f"  Location: {update['location_string']}")
+            print(f"  Location: {update['private_location_string']}")
             print()
         if len(updates) > 5:
             print(f"... and {len(updates) - 5} more updates")

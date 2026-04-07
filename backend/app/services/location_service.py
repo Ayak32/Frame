@@ -30,13 +30,13 @@ def get_objects_by_gallery(
     return response.data or []
 
 
-def get_objects_by_location_string(search_term: str) -> List[Dict[str, Any]]:
-    """Substring search on location_string (case-insensitive)."""
+def get_objects_by_public_location_string(search_term: str) -> List[Dict[str, Any]]:
+    """Substring search on public location_string (case-insensitive)."""
     pattern = f"%{search_term}%"
     response = (
         supabase.table("objects_on_view")
         .select("*")
-        .ilike("location_string", pattern)
+        .ilike("public_location_string", pattern)
         .execute()
     )
     return response.data or []

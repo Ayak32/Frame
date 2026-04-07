@@ -22,12 +22,12 @@ CREATE TABLE IF NOT EXISTS objects_on_view (
     period TEXT,  -- Period classification (e.g., "18th century")
     image_url TEXT,  -- URL of the image of the object
     gallery_number TEXT,  -- Gallery/room identifier (e.g., "137", "131a", "137-13")
-    location_string TEXT,  -- Full location description from CSV
+    public_location_string TEXT,  -- Full location description from linked art json
+    private_location_string TEXT,  -- Full location description from CSV
     room_base_number INTEGER,  -- Numeric part of room number for filtering (e.g., 137 from "137-13")
     case_number INTEGER,  -- Case number if present (e.g., 13 from "137-13"), NULL if not applicable
     floor_number INTEGER,  -- Floor number (derived from room number)
     floor_label TEXT,  -- Human-readable floor label (e.g., "Lower Level", "First Floor", "1E", "Second Floor")
-    coordinates JSONB,  -- Spatial coordinates {x, y} if available
     text_embedding vector(1536),  -- OpenAI ada-002 embedding for semantic search
     audio_guide_transcript TEXT,
     audio_guide_url TEXT,
