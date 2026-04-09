@@ -37,6 +37,7 @@ struct FloorPlanStackView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color("LaunchScreenBackground"))
         .navigationTitle("Floor plan")
         .navigationBarTitleDisplayMode(.inline)
         .task { await session.loadFloorPlansIfNeeded() }

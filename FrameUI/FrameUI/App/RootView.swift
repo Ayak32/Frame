@@ -11,9 +11,15 @@ import SwiftUI
 struct RootView: View {
     @EnvironmentObject private var tourSession: TourSession
 
+    /// Same as `#FDF6EE` — defined in `Assets.xcassets/LaunchScreenBackground`.
+    private var appBackground: Color { Color("LaunchScreenBackground") }
+
     var body: some View {
-        NavigationStack {
-            TourRequestView()
+        ZStack {
+            appBackground.ignoresSafeArea()
+            NavigationStack {
+                TourRequestView()
+            }
         }
     }
 }

@@ -88,7 +88,7 @@ struct ObjectDetailView: View {
                 .padding(.vertical, 20)
             }
         }
-        .background(Color(uiColor: UIColor.systemGroupedBackground))
+        .background(Color("LaunchScreenBackground"))
         .navigationTitle("Object")
         .navigationBarTitleDisplayMode(.inline)
         .task(id: objectId) {
@@ -118,7 +118,7 @@ struct ObjectDetailView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .background(Color.secondary.opacity(0.08))
+        .background(Color("LaunchScreenBackground"))
     }
 
     private var heroPlaceholder: some View {

@@ -19,63 +19,70 @@ struct TourRequestView: View {
     @State private var goToStops = false
 
     var body: some View {
-        Form {
-            Section {
-                TextField("A tour about....", text: $query, axis: .vertical)
-                    .lineLimit(3...8)
-
-                Picker("Time available", selection: $timeLimitMinutes) {
-                    ForEach(Self.tourLengthOptions, id: \.self) { minutes in
-                        Text("\(minutes) min").tag(minutes)
-                    }
-                }
-                .pickerStyle(.segmented)
-            } header: {
-                Text("What would you like to see?")
-                    .font(Font.custom("American Typewriter", size: 14))
-            } footer: {
-                Text("Choose how long you’d like to walk. The app picks more stops for longer tours.")
-                    .font(.footnote)
-            }
-
-            Section("Location filters (optional)") {
-                TextField("Floor number", text: $floorText)
-                    .keyboardType(.numberPad)
-                TextField("Gallery number", text: $galleryText)
-                    .textInputAutocapitalization(.never)
-            }
-
-            if let message = session.errorMessage {
+        ZStack {
+            Color("LaunchScreenBackground")
+                .ignoresSafeArea()
+            Form {
                 Section {
-                    Text(message)
-                        .foregroundStyle(.red)
-                        .font(.subheadline)
-                }
-            }
+                    TextField("A tour about....", text: $query, axis: .vertical)
+                        .lineLimit(3...8)
 
-            Section {
-                Button {
-                    Task {
-                        let floor = parsedFloor(from: floorText)
-                        await session.loadTour(
-                            query: query,
-                            timeLimitMinutes: timeLimitMinutes,
-                            floorNumber: floor,
-                            galleryNumber: galleryText
-                        )
-                        if session.errorMessage == nil, session.lastResponse != nil {
-                            goToStops = true
+                    Picker("Time available", selection: $timeLimitMinutes) {
+                        ForEach(Self.tourLengthOptions, id: \.self) { minutes in
+                            Text("\(minutes) min").tag(minutes)
                         }
                     }
-                } label: {
-                    Text("Start tour")
-                        .frame(maxWidth: .infinity)
+                    .pickerStyle(.segmented)
+                } header: {
+                    Text("What would you like to see?")
+                        .font(Font.custom("American Typewriter", size: 14))
+                } footer: {
+                    Text("Choose how long you’d like to walk. The app picks more stops for longer tours.")
+                        .font(.footnote)
                 }
-                .disabled(session.isLoading)
+
+                Section("Location filters (optional)") {
+                    TextField("Floor number", text: $floorText)
+                        .keyboardType(.numberPad)
+                    TextField("Gallery number", text: $galleryText)
+                        .textInputAutocapitalization(.never)
+                }
+
+                if let message = session.errorMessage {
+                    Section {
+                        Text(message)
+                            .foregroundStyle(.red)
+                            .font(.subheadline)
+                    }
+                }
+
+                Section {
+                    Button {
+                        Task {
+                            let floor = parsedFloor(from: floorText)
+                            await session.loadTour(
+                                query: query,
+                                timeLimitMinutes: timeLimitMinutes,
+                                floorNumber: floor,
+                                galleryNumber: galleryText
+                            )
+                            if session.errorMessage == nil, session.lastResponse != nil {
+                                goToStops = true
+                            }
+                        }
+                    } label: {
+                        Text("Start tour")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .disabled(session.isLoading)
+                }
             }
+            .scrollContentBackground(.hidden)
         }
         .navigationTitle("Welcome to  Frame")
         .navigationBarTitleDisplayMode(.large)
+        .toolbarBackground(Color("LaunchScreenBackground"), for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         .navigationDestination(isPresented: $goToStops) {
             TourStopsView()
                 .environmentObject(session)
@@ -85,7 +92,6 @@ struct TourRequestView: View {
             set: { session.isLoading = $0 }
         )) {
             TourLoadingView()
-                .environmentObject(session)
         }
     }
 

@@ -48,11 +48,19 @@ struct TourStopsView: View {
                         }
                         .buttonStyle(.plain)
                         .contentShape(Rectangle())
+                        // Default UITableViewCell background is white; paint the full row (edges + gaps) cream.
+                        .listRowBackground(Color("LaunchScreenBackground"))
+                        .listRowSeparator(.hidden)
                     }
                 }
                 .listStyle(.plain)
+                .listRowSpacing(0)
+                .scrollContentBackground(.hidden)
+                .background(Color("LaunchScreenBackground"))
                 .navigationTitle("Your Tour")
                 .navigationBarTitleDisplayMode(.large)
+                .toolbarBackground(Color("LaunchScreenBackground"), for: .navigationBar)
+                .toolbarBackground(.visible, for: .navigationBar)
                 .navigationDestination(item: $selectedStop) { selected in
                     ObjectDetailView(
                         objectId: selected.id,
@@ -90,8 +98,10 @@ struct TourStopsView: View {
                     systemImage: "figure.walk",
                     description: Text("Start a tour to see your stops.")
                 )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color("LaunchScreenBackground"))
             }
-        }
+        }.background(Color("LaunchScreenBackground"))
     }
 }
 private func sortedStops(from response: TourResponse) -> [TourStop] {
@@ -128,6 +138,7 @@ private struct TourStopCardRow: View {
             Spacer(minLength: 0)
         }
         .padding(.vertical, 4)
+        .background(Color("LaunchScreenBackground"))
     }
     @ViewBuilder
     private var thumbnail: some View {

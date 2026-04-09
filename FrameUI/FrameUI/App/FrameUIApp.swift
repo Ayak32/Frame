@@ -20,6 +20,10 @@ struct FrameUIApp: App {
         let cream = UIColor(named: "LaunchScreenBackground")
             ?? UIColor(red: 253 / 255, green: 246 / 255, blue: 238 / 255, alpha: 1)
         UIWindow.appearance().backgroundColor = cream
+        // Form/List use UITableView; a solid cream here often still leaves gray margins on iOS 18.
+        // Clear lets SwiftUI `.background` / parent `ZStack` colors show through.
+        UITableView.appearance().backgroundColor = .clear
+        UICollectionView.appearance().backgroundColor = .clear
     }
 
     var body: some Scene {
