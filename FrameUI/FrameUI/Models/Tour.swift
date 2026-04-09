@@ -77,7 +77,7 @@ struct TourObjectRecord: Decodable {
     let audioGuideTranscript: String?
     let imageUrl: String?
     let galleryNumber: String?
-    let locationString: String?
+    let publicLocationString: String?
     let galleryBaseNumber: Int?
     let caseNumber: Int?
     let floorNumber: Int?
@@ -88,7 +88,7 @@ struct TourObjectRecord: Decodable {
         case creatorName, creatorId
         case audioGuideTranscript
         case imageUrl
-        case galleryNumber, locationString, galleryBaseNumber, caseNumber, floorNumber, floorLabel
+        case galleryNumber, publicLocationString, galleryBaseNumber, caseNumber, floorNumber, floorLabel
     }
 }
 

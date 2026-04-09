@@ -31,6 +31,16 @@ struct TourStopsView: View {
 
     var body: some View {
         Group {
+            Text("Your Tour")
+                .font(.custom("American Typewriter", size: 28))
+                .font(.title.weight(.bold))
+                .foregroundStyle(.primary)
+                .multilineTextAlignment(.leading)
+                
+                .padding(.top, 10)
+                .padding(.bottom, 10)
+                .background(Color("LaunchScreenBackground"))
+                
             if let response = session.lastResponse {
                 List {
                     ForEach(sortedStops(from: response), id: \.objectId) { stop in
@@ -57,7 +67,6 @@ struct TourStopsView: View {
                 .listRowSpacing(0)
                 .scrollContentBackground(.hidden)
                 .background(Color("LaunchScreenBackground"))
-                .navigationTitle("Your Tour")
                 .navigationBarTitleDisplayMode(.large)
                 .toolbarBackground(Color("LaunchScreenBackground"), for: .navigationBar)
                 .toolbarBackground(.visible, for: .navigationBar)
@@ -72,7 +81,7 @@ struct TourStopsView: View {
                     .environmentObject(session)
                 }
                 .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
+                    ToolbarItem(placement: .topBarTrailing) {
                         Button {
                             showMap = true
                         } label: {
@@ -130,6 +139,10 @@ private struct TourStopCardRow: View {
                     .font(.headline)
                     .foregroundStyle(.primary)
                     .multilineTextAlignment(.leading)
+                Text(creatorSubtitle(stop: stop, context: context))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.leading)
                 Text(locationSubtitle(stop: stop, context: context))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -179,14 +192,17 @@ private func displayTitle(stop: TourStop, context: RetrievedObjectContext?) -> S
     }
     return "Untitled"
 }
-//private func creatorSubtitle(stop: TourStop, context: RetrievedObjectContext?) -> String {
-//    if let creator =
-//        stop.creatorName.trimmingCharacters(in: .whitespacesAndNewlines), !creator.isEmpty {
-//        return creator
-//    }
-//}
+private func creatorSubtitle(stop: TourStop, context: RetrievedObjectContext?) -> String {
+    if let creator =
+        context?.object.creatorName?
+        .trimmingCharacters(in: .whitespacesAndNewlines),
+       !creator.isEmpty {
+        return creator
+    }
+    return "Unknown Creator"
+}
 private func locationSubtitle(stop: TourStop, context: RetrievedObjectContext?) -> String {
-    if let loc = context?.object.locationString?.trimmingCharacters(in: .whitespacesAndNewlines),
+    if let loc = context?.object.publicLocationString?.trimmingCharacters(in: .whitespacesAndNewlines),
        !loc.isEmpty {
         return loc
     }

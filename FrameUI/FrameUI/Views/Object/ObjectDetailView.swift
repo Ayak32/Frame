@@ -34,17 +34,8 @@ struct ObjectDetailView: View {
 
                     metadataBlock
 
-//                    if !narrative.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-//                        sectionHeader("On your tour")
-//                        Text(narrative)
-//                            .font(.body)
-//                            .foregroundStyle(.primary)
-//                            .multilineTextAlignment(.leading)
-//                            .fixedSize(horizontal: false, vertical: true)
-//                    }
-
                     if isLoadingEnriched {
-                        HStack(spacing: 8) {
+                        HStack(alignment: .center, spacing: 8) {
                             ProgressView()
                             Text("Loading more detail…")
                                 .font(.subheadline)
@@ -83,6 +74,8 @@ struct ObjectDetailView: View {
                             .padding(.top, 4)
                         }
                     }
+
+                    objectFloorMapSection
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 20)
@@ -92,7 +85,54 @@ struct ObjectDetailView: View {
         .navigationTitle("Object")
         .navigationBarTitleDisplayMode(.inline)
         .task(id: objectId) {
-            await loadEnrichedDescription()
+            await withTaskGroup(of: Void.self) { group in
+                group.addTask { await loadEnrichedDescription() }
+                group.addTask { await session.loadFloorPlansIfNeeded() }
+            }
+        }
+    }
+
+    private var resolvedContext: RetrievedObjectContext? {
+        context ?? session.context(for: objectId)
+    }
+
+    @ViewBuilder
+    private var objectFloorMapSection: some View {
+        if resolvedContext != nil {
+            Divider()
+                .padding(.top, 8)
+
+            sectionHeader("Location on floor plan")
+
+            if session.isLoadingFloorPlans {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+            } else if session.floorPlansLoadFailed {
+                Text("Couldn’t load floor plans.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else if let ctx = resolvedContext,
+                      let plan = FloorPlanPinHelper.matchingFloorPlan(for: ctx, in: session.floorPlans) {
+                let pin = FloorPlanPinHelper.pin(for: ctx, plan: plan)
+                FloorPlanImageWithPinsView(plan: plan, pins: pin.map { [$0] } ?? [])
+                if pin == nil {
+                    Text("Pin position isn’t available for this work.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 6)
+                }
+            } else if resolvedContext != nil {
+                if session.floorPlans.isEmpty {
+                    Text("No floor plans are available.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("No floor plan matches this object’s floor.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
     }
 
@@ -105,7 +145,7 @@ struct ObjectDetailView: View {
     @ViewBuilder
     private var heroImage: some View {
         Group {
-            if let urlString = context?.object.imageUrl,
+            if let urlString = resolvedContext?.object.imageUrl,
                let url = URL(string: urlString) {
                 CachedRemoteImage(url: url, contentMode: .fit) {
                     ZStack {
@@ -133,7 +173,7 @@ struct ObjectDetailView: View {
 
     @ViewBuilder
     private var metadataBlock: some View {
-        let obj = context?.object
+        let obj = resolvedContext?.object
         let detailLines = Self.objectDetailLines(from: obj)
         VStack(alignment: .leading, spacing: 8) {
             if let name = obj?.creatorName?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty {
@@ -149,7 +189,7 @@ struct ObjectDetailView: View {
                     .multilineTextAlignment(.leading)
             }
 
-            if let location = formattedLocation(context: context) {
+            if let location = formattedLocation(context: resolvedContext) {
                 Label(location, systemImage: "mappin.and.ellipse")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -182,7 +222,7 @@ struct ObjectDetailView: View {
 
     private func formattedLocation(context: RetrievedObjectContext?) -> String? {
         guard let ctx = context else { return nil }
-        if let loc = ctx.object.locationString?.trimmingCharacters(in: .whitespacesAndNewlines), !loc.isEmpty {
+        if let loc = ctx.object.publicLocationString?.trimmingCharacters(in: .whitespacesAndNewlines), !loc.isEmpty {
             return loc
         }
         var parts: [String] = []
