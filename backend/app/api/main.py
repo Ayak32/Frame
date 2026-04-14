@@ -20,7 +20,9 @@ app = FastAPI()
 
 
 class TourRequest(BaseModel):
-    query: str
+    """`query` is untrusted visitor text; keep length bounded for cost and abuse control."""
+
+    query: str = Field(..., min_length=1, max_length=2000)
     time_limit: int
     floor_number: Optional[int] = None
     gallery_number: Optional[str] = None
@@ -65,8 +67,14 @@ def _stops_from_parsed(parsed: Any) -> List[Dict[str, Any]]:
 
 @app.post("/tour", response_model=TourResponse)
 async def generate_tour(request: TourRequest):
+    topic = " ".join(request.query.split())
+    if not topic:
+        raise HTTPException(status_code=422, detail="Query cannot be empty or whitespace-only")
+    user_query = f"A tour about {topic}"
+
+    print(f"user_query: {user_query}")
     response = generate_tour_narrative(
-        request.query,
+        user_query,
         request.time_limit,
         request.floor_number,
         request.gallery_number,
@@ -76,7 +84,7 @@ async def generate_tour(request: TourRequest):
     if not isinstance(retrieved_objects, list):
         retrieved_objects = []
 
-    thematics_parsed = find_thematic_connections(request.query, retrieved_objects)
+    thematics_parsed = find_thematic_connections(topic, retrieved_objects)
     themes = thematic_hint_from_parsed(thematics_parsed)
     return TourResponse(
         tour=_stops_from_parsed(parsed),
