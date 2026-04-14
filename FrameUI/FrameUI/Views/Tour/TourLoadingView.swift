@@ -42,13 +42,13 @@ struct FrameLoader: View {
     @State private var showLeft = false
 
     let frameSize: CGFloat = 160
-    let horizontalScale: CGFloat = 1.12
+    let horizontalScale: CGFloat = 1.50
     
 
     private let fadeDuration: Double = 0.50
 
     var body: some View {
-//        let verticalSeparation: CGFloat = frameSize / 5
+        let verticalSeparation: CGFloat = frameSize / 6.8
         ZStack {
             Image("top_frame")
                 .resizable()
@@ -57,16 +57,16 @@ struct FrameLoader: View {
                 .opacity(showTop ? 1 : 0)
                 .animation(.easeInOut(duration: fadeDuration), value: showTop)
                 .offset(y: -frameSize / 2.9)
-//                .offset(y: -verticalSeparation)
+                .offset(y: -verticalSeparation)
                 .zIndex(2)
 
             Image("right_frame")
                 .resizable()
                 .scaledToFit()
-                .frame(width: frameSize)
+                .frame(width: frameSize, height: frameSize * horizontalScale)
                 .opacity(showRight ? 1 : 0)
                 .animation(.easeInOut(duration: fadeDuration), value: showRight)
-                .offset(x: frameSize / 2.8)
+                .offset(x: frameSize / 2)
                 .zIndex(1)
 
             Image("bottom_frame")
@@ -76,15 +76,16 @@ struct FrameLoader: View {
                 .opacity(showBottom ? 1 : 0)
                 .animation(.easeInOut(duration: fadeDuration), value: showBottom)
                 .offset(y: frameSize / 2.9)
+                .offset(y: verticalSeparation)
                 .zIndex(2)
 
             Image("left_frame")
                 .resizable()
                 .scaledToFit()
-                .frame(width: frameSize)
+                .frame(width: frameSize, height: frameSize * horizontalScale)
                 .opacity(showLeft ? 1 : 0)
                 .animation(.easeInOut(duration: fadeDuration), value: showLeft)
-                .offset(x: -frameSize / 2.8)
+                .offset(x: -frameSize / 2)
                 .zIndex(1)
         }
         .frame(width: frameSize + 30, height: frameSize + 30)
