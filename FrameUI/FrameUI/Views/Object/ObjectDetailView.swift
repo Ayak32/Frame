@@ -115,7 +115,8 @@ struct ObjectDetailView: View {
             } else if let ctx = resolvedContext,
                       let plan = FloorPlanPinHelper.matchingFloorPlan(for: ctx, in: session.floorPlans) {
                 let pin = FloorPlanPinHelper.pin(for: ctx, plan: plan)
-                FloorPlanImageWithPinsView(plan: plan, pins: pin.map { [$0] } ?? [])
+                let clusters = FloorPlanPinHelper.clusters(for: plan, contexts: [ctx])
+                FloorPlanImageWithPinsView(plan: plan, clusters: clusters, interactivePins: false)
                 if pin == nil {
                     Text("Pin position isn’t available for this work.")
                         .font(.caption)

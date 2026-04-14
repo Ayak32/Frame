@@ -30,17 +30,7 @@ struct TourStopsView: View {
 
 
     var body: some View {
-        Group {
-            Text("Your Tour")
-                .font(.custom("American Typewriter", size: 28))
-                .font(.title.weight(.bold))
-                .foregroundStyle(.primary)
-                .multilineTextAlignment(.leading)
-                
-                .padding(.top, 10)
-                .padding(.bottom, 10)
-                .background(Color("LaunchScreenBackground"))
-                
+        Group {             
             if let response = session.lastResponse {
                 List {
                     ForEach(sortedStops(from: response), id: \.objectId) { stop in
@@ -67,7 +57,8 @@ struct TourStopsView: View {
                 .listRowSpacing(0)
                 .scrollContentBackground(.hidden)
                 .background(Color("LaunchScreenBackground"))
-                .navigationBarTitleDisplayMode(.large)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbarColorScheme(.light, for: .navigationBar)
                 .toolbarBackground(Color("LaunchScreenBackground"), for: .navigationBar)
                 .toolbarBackground(.visible, for: .navigationBar)
                 .navigationDestination(item: $selectedStop) { selected in
@@ -81,12 +72,19 @@ struct TourStopsView: View {
                     .environmentObject(session)
                 }
                 .toolbar {
+                    ToolbarItem(placement: .principal) {
+                        Text("Your Tour")
+                            .font(.custom("American Typewriter", size: 28))
+                            // Fixed color: `.primary` tracks bar material and shifts when the list scrolls (scroll-edge appearance).
+                            .foregroundStyle(Color(white: 0.15))
+                    }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
                             showMap = true
                         } label: {
                             Image(systemName: "map")
                         }
+                        .foregroundStyle(Color(white: 0.15))
                         .accessibilityLabel("Floor map")
                     }
                 }
