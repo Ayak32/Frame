@@ -51,6 +51,7 @@ class ObjectDescriptionRequest(BaseModel):
 
 class ObjectDescriptionResponse(BaseModel):
     object_id: str
+    narrative: str
     key_facts: List[str] = Field(default_factory=list)
 
 

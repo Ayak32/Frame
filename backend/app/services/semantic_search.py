@@ -21,6 +21,7 @@ if str(project_root) not in sys.path:
 
 
 from backend.app.config import EMBEDDING_MODEL, openai_client as default_openai_client, supabase as default_supabase
+from backend.app.services.retrieval_query_expansion import expand_query_for_retrieval
 
 
 VALID_SEARCH_TABLES = {"objects_on_view", "objects_off_view"}
@@ -112,11 +113,20 @@ def search_objects(
     gallery_number: Optional[str] = None,
     openai_client=None,
     supabase_client=None,
+    expand_retrieval_query: bool = True,
 ) -> List[Dict[str, Any]]:
     """
     Embed free text and return the closest objects in the chosen table.
+
+    When ``expand_retrieval_query`` is True, the string sent to the embedding API may
+    append a short synonym/entity list for known tour intents (see
+    ``retrieval_query_expansion``). The caller's ``query_text`` is not modified;
+    only the embedding step uses the expanded form.
     """
-    query_embedding = create_query_embedding(query_text, client=openai_client)
+    text_for_embedding = (
+        expand_query_for_retrieval(query_text) if expand_retrieval_query else query_text
+    )
+    query_embedding = create_query_embedding(text_for_embedding, client=openai_client)
     return search_objects_by_embedding(
         query_embedding,
         limit=limit,
