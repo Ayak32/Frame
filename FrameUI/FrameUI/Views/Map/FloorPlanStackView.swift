@@ -26,11 +26,12 @@ struct FloorPlanStackView: View {
                 ContentUnavailableView("No floor plans", systemImage: "map")
             } else {
                 ScrollView {
-                    LazyVStack(alignment: .center, spacing: 16) {
+                    LazyVStack(alignment: .center, spacing: 0) {
                         Text("Tap a gold star to see which tour stops are in that gallery.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
+                            .padding(.bottom, 8)
 
                         ForEach(session.floorPlans.reversed(), id: \.ref) { plan in
                             FloorPlanImageWithPinsView(
