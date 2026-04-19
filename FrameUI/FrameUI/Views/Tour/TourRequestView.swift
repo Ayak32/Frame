@@ -123,7 +123,7 @@ struct TourRequestView: View {
             // Pinned header at the very top of the view.
             VStack(spacing: 10) {
                 Text("Welcome to Frame")
-                    .font(.custom("American Typewriter", size: 22))
+                    .font(.custom("American Typewriter", size: 33))
                     .frame(maxWidth: .infinity, alignment: .center)
 
                 Rectangle()

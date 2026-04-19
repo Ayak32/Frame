@@ -3,8 +3,8 @@
 This module embeds a user query with OpenAI, then asks Supabase to run a
 pgvector similarity search using a SQL RPC function (`match_objects`).
 
-The database function is what actually performs the `ORDER BY text_embedding <=> ...`
-part efficiently. See `database/schema.sql`
+The database function performs `ORDER BY text_embedding <=> ...` and restricts
+results to rows with ``is_on_view = true`` (see ``database/schema.sql``).
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from backend.app.config import EMBEDDING_MODEL, openai_client as default_openai_
 from backend.app.services.retrieval_query_expansion import expand_query_for_retrieval
 
 
-VALID_SEARCH_TABLES = {"objects_on_view", "objects_off_view"}
+VALID_SEARCH_TABLES = {"objects"}
 
 
 def _validate_table_name(table: str) -> str:
@@ -65,7 +65,7 @@ def create_query_embedding(
 def search_objects_by_embedding(
     query_embedding: Sequence[float],
     limit: int = 10,
-    table: str = "objects_on_view",
+    table: str = "objects",
     *,
     floor_number: Optional[int] = None,
     gallery_number: Optional[str] = None,
@@ -94,7 +94,7 @@ def search_objects_by_embedding(
     except Exception as exc:
         raise RuntimeError(
             "Semantic search requires the `match_objects` SQL function. "
-            "Apply the semantic search migration in `backend/scripts/migrate_add_semantic_search.sql` "
+            "Apply the semantic search migration in `database/migrate_add_semantic_search.sql` "
             "or add the same function to `database/schema.sql`."
         ) from exc
 
@@ -107,7 +107,7 @@ def search_objects_by_embedding(
 def search_objects(
     query_text: str,
     limit: int = 10,
-    table: str = "objects_on_view",
+    table: str = "objects",
     *,
     floor_number: Optional[int] = None,
     gallery_number: Optional[str] = None,
@@ -141,7 +141,7 @@ def search_objects(
 def get_related_objects(
     object_id: str,
     limit: int = 5,
-    table: str = "objects_on_view",
+    table: str = "objects",
     *,
     supabase_client=None,
 ) -> List[Dict[str, Any]]:
@@ -173,5 +173,5 @@ def get_related_objects(
 
 
 # if __name__ == "__main__":
-#     results = search_objects("American portraiture", limit=5, table="objects_on_view")
+#     results = search_objects("American portraiture", limit=5, table="objects")
 #     print(results)

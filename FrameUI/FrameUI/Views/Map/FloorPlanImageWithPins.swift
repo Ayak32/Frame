@@ -38,6 +38,7 @@ enum FloorPlanPinHelper {
         return nil
     }
 
+    // Does this object get a pin on this plan?
     static func pin(for context: RetrievedObjectContext, plan: FloorPlan) -> FloorMapPin? {
         guard let oid = context.object.id?.trimmingCharacters(in: .whitespacesAndNewlines), !oid.isEmpty else {
             return nil

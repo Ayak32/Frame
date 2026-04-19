@@ -1,12 +1,3 @@
-"""Optional query expansion for vector retrieval only.
-
-Visitor-facing prompts and LLM calls should keep the original query. This module
-rewrites text only for create_query_embedding so the query vector aligns with
-synonyms and entities that may appear in object/artist embedding text.
-
-Rules are (regex, suffix). First matching rule wins; put more specific patterns first.
-"""
-
 from __future__ import annotations
 
 import re
@@ -14,14 +5,13 @@ from typing import List, Optional, Pattern, Tuple
 
 Rule = Tuple[Pattern[str], str]
 
-# Suffixes: short noun phrases / names your indexed text might contain. Avoid long prose.
 _RETRIEVAL_INTENT_RULES: List[Rule] = [
     (
         re.compile(
             r"\bpointillism\b|neo[-\s]?impressionism\b|\bdivisionism\b",
             re.IGNORECASE,
         ),
-        "Neo-Impressionism divisionism optical color Seurat Signac Pissarro Van GoghHenri-Edmond Cross",
+        "Neo-Impressionism divisionism optical color Seurat Signac Pissarro Van Gogh Henri-Edmond Cross",
     ),
     (
         re.compile(

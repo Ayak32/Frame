@@ -20,7 +20,8 @@ from backend.app.services.semantic_search import search_objects
 
 
 def fetch_object_row(object_id: str) -> Optional[Dict[str, Any]]:
-    response = supabase.table("objects_on_view").select("*").eq("id", object_id).limit(1).execute()
+    """Load one object by id (includes off-view rows; check ``is_on_view`` if needed)."""
+    response = supabase.table("objects").select("*").eq("id", object_id).limit(1).execute()
     return response.data[0] if response.data else None
 
 
@@ -123,9 +124,10 @@ def _enrich_object_row(object_row: Dict[str, Any]) -> Dict[str, Any]:
             "period": object_row.get("period"),
             "materials": object_row.get("materials"),
             "description": object_row.get("dimensions_text"),
+            "provenance_text": object_row.get("provenance_text"),
+            "credit_line": object_row.get("credit_line"),
             "audio_guide_transcript": object_row.get("audio_guide_transcript"),
             "image_url": object_row.get("image_url"),
-            # "linked_art_json": object_row.get("linked_art_json"),
             "gallery_number": object_row.get("gallery_number"),
             "public_location_string": object_row.get("public_location_string"),
             "gallery_base_number": object_row.get("gallery_base_number"),
@@ -170,7 +172,7 @@ def enrich_object_context(object_id: str) -> Optional[Dict[str, Any]]:
 def retrieve_objects_normalized(
     query: str,
     limit: int = 10,
-    table: str = "objects_on_view",
+    table: str = "objects",
     *,
     floor_number: Optional[int] = None,
     gallery_number: Optional[str] = None,
@@ -200,7 +202,7 @@ def retrieve_objects_normalized(
 def retrieve_objects(
     query: str,
     limit: int = 10,
-    table: str = "objects_on_view",
+    table: str = "objects",
     *,
     floor_number: Optional[int] = None,
     gallery_number: Optional[str] = None,
@@ -291,6 +293,10 @@ def build_user_prompt(query: str, context_objects: List[Dict[str, Any]]) -> str:
             lines.append(f"  Floor Label: {obj['floor_label']}")
         if obj.get("description"):
             lines.append(f"  Description: {obj['description']}")
+        if obj.get("credit_line"):
+            lines.append(f"  Credit Line: {obj['credit_line']}")
+        if obj.get("provenance_text"):
+            lines.append(f"  Provenance: {obj['provenance_text']}")
         if vis.get("style_classifications"):
             lines.append(f"  Style Classifications: {_format_list(vis['style_classifications'])}")
         if vis.get("subject_matter"):

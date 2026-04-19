@@ -1,5 +1,5 @@
 """
-Import location data from CSV file into objects_on_view table.
+Import location data from CSV file into objects table.
 
 CSV format expected:
 - system_number
@@ -192,9 +192,6 @@ def import_locations_from_csv(csv_path: str, dry_run: bool = False):
             # Derive floor info
             floor_number, floor_label = derive_floor_info(room_base_number)
             
-            # Use gallery number or private_location_string for gallery_location
-            gallery_location = gallery_number if gallery_number else private_location_string
-            
             update_data = {
                 'system_number': system_number,
                 'gallery_number': gallery_number,
@@ -203,7 +200,6 @@ def import_locations_from_csv(csv_path: str, dry_run: bool = False):
                 'case_number': case_number,
                 'floor_number': floor_number,
                 'floor_label': floor_label,
-                'gallery_location': gallery_location,
             }
             
             updates.append(update_data)
@@ -233,7 +229,7 @@ def import_locations_from_csv(csv_path: str, dry_run: bool = False):
         system_num = update['system_number']
         try:
             # Find object by system_number
-            result = supabase.table("objects_on_view").select("id, system_number").eq("system_number", system_num).limit(1).execute()
+            result = supabase.table("objects").select("id, system_number").eq("system_number", system_num).limit(1).execute()
             
             if not result.data:
                 not_found.append(system_num)
@@ -242,7 +238,7 @@ def import_locations_from_csv(csv_path: str, dry_run: bool = False):
             
             # Update the object
             update_dict = {k: v for k, v in update.items() if k != 'system_number'}
-            supabase.table("objects_on_view").update(update_dict).eq("system_number", system_num).execute()
+            supabase.table("objects").update(update_dict).eq("system_number", system_num).execute()
             updated_count += 1
             
             if updated_count % 100 == 0:

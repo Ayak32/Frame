@@ -5,9 +5,12 @@ Used by generate_embeddings.py. When include_external=True, looks up cached
 artist (biography_text) and visual_items (extracted_text) from Supabase.
 """
 
+import re
 from typing import Dict, Any, List, Optional
 
 _supabase = None
+
+_AUDIO_GUIDE_EXCERPT_MAX = 2500
 
 
 def _get_supabase():
@@ -22,6 +25,12 @@ def _get_supabase():
             raise ValueError("SB_URL and SB_SECRET_KEY must be set for external lookups")
         _supabase = create_client(url, key)
     return _supabase
+
+
+def _html_to_plain(text: str) -> str:
+    """Strip tags and collapse whitespace for embedding excerpts."""
+    plain = re.sub(r"<[^>]+>", " ", text)
+    return " ".join(plain.split())
 
 
 def _format_value(value: Any) -> str:
@@ -121,52 +130,17 @@ def build_embedding_text_on_view(
     _add_line(parts, "Culture", obj.get("culture"))
     _add_line(parts, "Period", obj.get("period"))
     _add_line(parts, "Materials", obj.get("materials"))
+    _add_line(parts, "Credit Line", obj.get("credit_line"))
+    _add_line(parts, "Provenance", obj.get("provenance_text"))
 
-    # Audio guide: flag only (transcript is not included in embedding text)
-    has_audio = "yes" if (obj.get("audio_guide_url") or obj.get("audio_guide_transcript")) else "no"
-    parts.append(f"Has Audio Guide: {has_audio}")
-
-    return "\n".join(parts)
-
-
-def build_embedding_text_off_view(
-    obj: Dict[str, Any],
-    include_external: bool = True,
-    supabase=None,
-) -> str:
-    """
-    Build one string for embedding from an off-view object: object fields plus
-    optional artist biography and VisualItem content from the database.
-    """
-    sb = supabase if supabase is not None else _get_supabase()
-    parts: List[str] = []
-
-    # Object fields
-    _add_line(parts, "Title", obj.get("title"))
-    _add_line(parts, "Artist", obj.get("creator_name"))
-
-    # Enriched data from artists and visual_items tables
-    if include_external:
-        biography = _lookup_artist_biography(obj.get("creator_id"), sb)
-        if biography:
-            parts.append(f"Artist Biography: {biography}")
-        visual_content = _lookup_visual_content(obj.get("id"), sb)
-        if visual_content:
-            parts.append(f"Visual Content: {visual_content}")
-
-    # More object fields
-    _add_line(parts, "Classification", obj.get("classification"))
-
-    description = (obj.get("curatorial_text") or "").strip()
-    if description:
-        parts.append(f"Description: {description}")
-
-    _add_line(parts, "Culture", obj.get("culture"))
-    _add_line(parts, "Period", obj.get("period"))
-    _add_line(parts, "Materials", obj.get("materials"))
-
-    # Audio guide: flag only
-    has_audio = "yes" if (obj.get("audio_guide_url") or obj.get("audio_guide_transcript")) else "no"
-    parts.append(f"Has Audio Guide: {has_audio}")
+    transcript = (obj.get("audio_guide_transcript") or "").strip()
+    if transcript:
+        plain = _html_to_plain(transcript)
+        excerpt = plain[:_AUDIO_GUIDE_EXCERPT_MAX]
+        if len(plain) > _AUDIO_GUIDE_EXCERPT_MAX:
+            excerpt += "..."
+        parts.append(f"Audio Guide Transcript (excerpt): {excerpt}")
+    elif obj.get("audio_guide_url"):
+        parts.append("Audio Guide: available (no transcript text in record)")
 
     return "\n".join(parts)

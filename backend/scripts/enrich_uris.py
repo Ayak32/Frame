@@ -11,7 +11,7 @@ sys.path.insert(0, str(project_root))
 
 from supabase import create_client, Client
 from dotenv import load_dotenv
-from backend.scripts.uri_extractor import (extract_external_uris, extract_creator_uris, extract_visual_item_uris)
+from backend.scripts.uri_extractor import (extract_creator_uris, extract_visual_item_uris)
 from backend.scripts.external_fetchers import (fetch_artist, fetch_visual_item, fetch_wikidata, fetch_getty_ulan, fetch_loc, extract_text_from_external_data)
 
 load_dotenv()
@@ -23,17 +23,6 @@ if not SB_URL or not SB_SECRET_KEY:
 
 supabase: Client = create_client(SB_URL, SB_SECRET_KEY)
 
-
-def upsert_external_uri(uri: str, uri_type: str, data: Any, extracted_text: Optional[str]) -> None:
-    """Upsert one row into external_uris (generic URI cache)."""
-    row = {
-        'uri': uri,
-        'uri_type': uri_type,
-        'data': data,
-        'extracted_text': extracted_text or None,
-        'last_fetched': datetime.now().isoformat()
-    }
-    supabase.table('external_uris').upsert(row).execute()
 
 
 def process_creator_uri(creator_uri: str, dry_run: bool = False) -> Dict[str, Any]:
@@ -79,33 +68,18 @@ def process_creator_uri(creator_uri: str, dry_run: bool = False) -> Dict[str, An
                 if not wikidata_result.get('error'):
                     wikidata_data = wikidata_result.get('full_data')
                     wikidata_for_text = wikidata_result  # has description/biography for biography_text
-                    wd_text = extract_text_from_external_data(
-                        {'description': wikidata_result.get('description'), 'biography': wikidata_result.get('biography')},
-                        'wikidata'
-                    )
-                    upsert_external_uri(uri, 'wikidata', wikidata_data, wd_text or None)
             
             elif uri_type == 'getty_ulan':
                 getty_ulan_id = uri.split('/')[-1]  # Extract ID from URI
                 getty_result = fetch_getty_ulan(uri)
                 if not getty_result.get('error'):
                     getty_ulan_data = getty_result.get('full_data')
-                    getty_text = extract_text_from_external_data(
-                        {'name': getty_result.get('name'), 'biography': getty_result.get('biography')},
-                        'getty_ulan'
-                    )
-                    upsert_external_uri(uri, 'getty_ulan', getty_ulan_data, getty_text or None)
             
             elif uri_type == 'loc':
                 loc_id = uri.split('/')[-1]  # Extract ID from URI
                 loc_result = fetch_loc(uri)
                 if not loc_result.get('error'):
                     loc_data = loc_result.get('full_data')
-                    loc_text = extract_text_from_external_data(
-                        {'name': loc_result.get('name'), 'biography': loc_result.get('biography')},
-                        'loc'
-                    )
-                    upsert_external_uri(uri, 'loc', loc_data, loc_text or None)
         
         # Step 4: Build biography text from all sources
         biography_parts = []
@@ -222,8 +196,10 @@ def enrich_on_view(dry_run: bool = False, limit: Optional[int] = None, start_fro
     offset = start_from
     while True:
         batch = (
-            supabase.table('objects_on_view')
+            supabase.table('objects')
             .select('id, linked_art_json, creator_id')
+            .eq('is_on_view', True)
+            .order('id')
             .range(offset, offset + PAGE_SIZE - 1)
             .execute()
         ).data
@@ -294,21 +270,16 @@ def main():
     parser.add_argument('--dry-run', action='store_true', help='Preview without making changes')
     parser.add_argument('--limit', type=int, help='Limit number of objects to process')
     parser.add_argument('--start-from', type=int, default=0, help='Start from this object index')
-    parser.add_argument('--table', choices=['on_view', 'off_view', 'both'], default='on_view',
+    parser.add_argument('--table', choices=['on_view'], default='on_view',
                        help='Which table to process')
 
     args = parser.parse_args()
 
     if args.dry_run:
         print("Dry Run mode. No data will be stored")
-    if args.table in ['on_view', 'both']:
+    if args.table in ['on_view']:
         enrich_on_view(dry_run=args.dry_run, limit=args.limit, start_from=args.start_from)
     
-    if args.table in ['off_view', 'both']:
-        # enrich_off_view(dry_run=args.dry_run, limit=args.limit, start_from=args.start_from)
-        pass
-
-
 
 if __name__ == "__main__":
     main()

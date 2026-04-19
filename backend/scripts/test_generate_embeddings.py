@@ -37,6 +37,8 @@ def _mock_one_object_row():
         "audio_guide_url": None,
         "audio_guide_transcript": None,
         "dimensions_text": None,
+        "provenance_text": None,
+        "credit_line": None,
     }]
 
 
@@ -50,13 +52,11 @@ class TestGenerateEmbeddings(unittest.TestCase):
         self.assertEqual(gen.count_tokens_approx("x" * 800), 200)
 
     def test_select_columns(self):
-        """Correct columns per table (on_view has dimensions_text, off_view has curatorial_text)."""
+        """Correct columns per table (on_view has dimensions_text)."""
         import backend.scripts.generate_embeddings as gen
-        on_view = gen._select_columns("objects_on_view")
-        off_view = gen._select_columns("objects_off_view")
+        on_view = gen._select_columns("objects")
         self.assertIn("dimensions_text", on_view)
         self.assertNotIn("curatorial_text", on_view)
-        self.assertIn("curatorial_text", off_view)
         self.assertIn("id", on_view)
         self.assertIn("title", on_view)
 
@@ -82,7 +82,7 @@ class TestGenerateEmbeddings(unittest.TestCase):
             {"id": "https://example.org/obj/1", "title": "A Painting", "creator_id": None},
         ]
         with patch.object(gen, "build_embedding_text_on_view", return_value=""):
-            pairs = gen.build_texts_for_objects(objects, "objects_on_view", mock_supabase, include_external=False)
+            pairs = gen.build_texts_for_objects(objects, "objects", mock_supabase, include_external=False)
         self.assertEqual(len(pairs), 1)
         self.assertEqual(pairs[0][0], "https://example.org/obj/1")
         self.assertEqual(pairs[0][1], "A Painting")
@@ -94,7 +94,7 @@ class TestGenerateEmbeddings(unittest.TestCase):
         mock_supabase.table.return_value.select.return_value.range.return_value.execute.return_value.data = _mock_one_object_row()
         mock_openai = MagicMock()
         gen.run_table(
-            "objects_on_view",
+            "objects",
             mock_supabase,
             mock_openai,
             limit=1,
@@ -115,7 +115,7 @@ class TestGenerateEmbeddings(unittest.TestCase):
             MagicMock(index=0, embedding=[0.01] * 1536),
         ]
         gen.run_table(
-            "objects_on_view",
+            "objects",
             mock_supabase,
             mock_openai,
             limit=1,

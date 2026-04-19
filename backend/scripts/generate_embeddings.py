@@ -1,5 +1,5 @@
 """
-Batch generate and store OpenAI embeddings for objects_on_view and/or objects_off_view.
+Batch generate and store OpenAI embeddings for objects.
 
 Uses text_extractor to build enriched text (with artist and VisualItem data when available),
 then calls OpenAI embeddings API and writes vectors to Supabase. Supports resume (skip
@@ -9,23 +9,32 @@ Verify before a full run:
   1. Run tests: python backend/scripts/test_generate_embeddings.py (from Project, venv active)
   2. Dry run:  --dry-run --no-skip-existing  (no API/DB writes; shows counts and cost)
   3. One object: --limit 1 --no-skip-existing then check Supabase that text_embedding is set
+
+Resume after a crash or Ctrl-C:
+  • Default (omit --no-skip-existing): only rows with NULL text_embedding are selected, so
+    anything already written is skipped automatically — just run the same command again.
+  • Full re-embed (--no-skip-existing): pass --start-offset N where N is the last "Embedded N
+    objects" line from the log (may re-embed up to one batch twice if the failure was mid-batch).
 """
 
 import sys
 import time
+import random
 import argparse
 from pathlib import Path
 from typing import Optional, List, Dict, Any, Tuple
 
+import httpx
 
-# Project root on path
-project_root = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(project_root))
+
+project_root = Path(__file__).resolve().parents[2]
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 from dotenv import load_dotenv
 load_dotenv()
-from backend.app.config import openai_client, embedding_model, supabase, BATCH_SIZE, PAGE_SIZE, COST_PER_M_TOKEN
-from backend.scripts.text_extractor import build_embedding_text_on_view, build_embedding_text_off_view
+from backend.app.config import openai_client, EMBEDDING_MODEL, supabase, BATCH_SIZE, PAGE_SIZE, COST_PER_M_TOKEN
+from backend.scripts.text_extractor import build_embedding_text_on_view
 
 
 def get_supabase():
@@ -38,9 +47,12 @@ def count_tokens_approx(text: str) -> int:
 
 
 def _select_columns(table: str) -> str:
-    """Columns needed for text extraction. objects_on_view has no curatorial_text."""
-    base = "id, title, creator_id, creator_name, classification, culture, period, materials, linked_art_json, audio_guide_url, audio_guide_transcript"
-    if table == "objects_on_view":
+    """Columns needed for text extraction. objects has no curatorial_text."""
+    base = (
+        "id, title, creator_id, creator_name, classification, culture, period, materials, "
+        "linked_art_json, provenance_text, credit_line, audio_guide_url, audio_guide_transcript"
+    )
+    if table == "objects":
         return base + ", dimensions_text"
     return base + ", curatorial_text"
 
@@ -49,19 +61,26 @@ def fetch_objects(
     supabase,
     table: str,
     skip_existing: bool,
-    limit: Optional[int],
     offset: int = 0,
+    *,
+    page_cap: Optional[int] = None,
 ) -> Tuple[List[Dict[str, Any]], int]:
     """Fetch a page of objects. If skip_existing, only rows where text_embedding IS NULL.
     Returns (list of rows, num_rows_from_server) so caller can advance offset correctly when
-    we filter in Python. Uses order('id') for stable pagination."""
+    we filter in Python. Uses order('id') for stable pagination.
+    page_cap: max rows to request this page (capped at PAGE_SIZE). None means full PAGE_SIZE."""
+    cap = PAGE_SIZE if page_cap is None else min(PAGE_SIZE, max(0, page_cap))
+    if cap <= 0:
+        return ([], 0)
     columns = _select_columns(table)
     if skip_existing:
         columns = columns + ", text_embedding"
     query = supabase.table(table).select(columns)
+    if table == "objects":
+        query = query.eq("is_on_view", True)
     if skip_existing:
         query = query.is_("text_embedding", "null")
-    query = query.order("id").range(offset, offset + PAGE_SIZE - 1)
+    query = query.order("id").range(offset, offset + cap - 1)
     r = query.execute()
     data = r.data or []
     num_from_server = len(data)
@@ -80,7 +99,7 @@ def build_texts_for_objects(
     include_external: bool = True,
 ) -> List[tuple]:
     """Return list of (object_id, text) for each object. Skips objects that yield empty text."""
-    builder = build_embedding_text_on_view if table == "objects_on_view" else build_embedding_text_off_view
+    builder = build_embedding_text_on_view
     out = []
     for obj in objects:
         text = builder(obj, include_external=include_external, supabase=supabase).strip()
@@ -94,16 +113,38 @@ def get_embeddings(texts: List[str]) -> List[List[float]]:
     """Call OpenAI embeddings API for a batch of texts. Returns list of vectors."""
     if not texts:
         return []
-    r = openai_client.embeddings.create(model=embedding_model, input=texts)
+    r = openai_client.embeddings.create(model=EMBEDDING_MODEL, input=texts)
     # Preserve order by index
     by_index = {e.index: e.embedding for e in r.data}
     return [by_index[i] for i in range(len(texts))]
 
 
+_SUPABASE_WRITE_RETRIES = 6
+_SUPABASE_WRITE_BASE_DELAY = 0.4
+_TRANSIENT_HTTP = (
+    httpx.RemoteProtocolError,
+    httpx.ConnectError,
+    httpx.ReadTimeout,
+    httpx.WriteTimeout,
+    ConnectionError,
+)
+
+
 def update_embeddings(supabase, table: str, id_embedding_pairs: List[tuple]) -> None:
-    """Write embeddings to Supabase (one update per row)."""
+    """Write embeddings to Supabase (one update per row). Retries transient HTTP failures."""
     for obj_id, embedding in id_embedding_pairs:
-        supabase.table(table).update({"text_embedding": embedding}).eq("id", obj_id).execute()
+        last_err: Optional[BaseException] = None
+        for attempt in range(_SUPABASE_WRITE_RETRIES):
+            try:
+                supabase.table(table).update({"text_embedding": embedding}).eq("id", obj_id).execute()
+                last_err = None
+                break
+            except _TRANSIENT_HTTP as e:
+                last_err = e
+                delay = _SUPABASE_WRITE_BASE_DELAY * (2**attempt) + random.uniform(0, 0.2)
+                time.sleep(delay)
+        if last_err is not None:
+            raise last_err
 
 
 def run_table(
@@ -114,17 +155,32 @@ def run_table(
     skip_existing: bool = True,
     dry_run: bool = False,
     include_external: bool = True,
+    start_offset: int = 0,
 ) -> None:
     total_processed = 0
     total_tokens = 0
-    offset = 0
+    offset = max(0, start_offset)
 
     print(f"Table: {table} (skip_existing={skip_existing}, dry_run={dry_run}, batch_size={BATCH_SIZE})")
+    if start_offset:
+        print(f"  start_offset={start_offset} (ordered by id; use after a failed --no-skip-existing run)")
     print()
 
     while True:
-        batch, num_from_server = fetch_objects(supabase, table, skip_existing, limit, offset)
+        if limit is not None:
+            page_cap = limit - total_processed
+            if page_cap <= 0:
+                break
+        else:
+            page_cap = None
+        requested = PAGE_SIZE if page_cap is None else min(PAGE_SIZE, page_cap)
+        batch, num_from_server = fetch_objects(
+            supabase, table, skip_existing, offset, page_cap=page_cap
+        )
         if not batch:
+            if num_from_server > 0:
+                offset += num_from_server
+                continue
             print("  Fetched 0 rows (none missing embedding?).")
             break
 
@@ -136,7 +192,7 @@ def run_table(
 
         id_text_pairs = build_texts_for_objects(batch, table, supabase, include_external)
         if not id_text_pairs:
-            offset += len(batch)
+            offset += num_from_server
             continue
 
         print("  Built text for %d objects. Embedding..." % len(id_text_pairs))
@@ -171,7 +227,7 @@ def run_table(
 
         if limit is not None and total_processed >= limit:
             break
-        if num_from_server < PAGE_SIZE:
+        if num_from_server < requested:
             break
         offset += num_from_server
 
@@ -186,9 +242,17 @@ def run_table(
 
 def main():
     parser = argparse.ArgumentParser(description="Generate and store OpenAI embeddings for object tables")
-    parser.add_argument("--table", choices=["on_view", "off_view", "both"], default="on_view", help="Which table(s) to process")
+    parser.add_argument("--table", choices=["on_view"], default="on_view", help="Which table(s) to process")
     parser.add_argument("--limit", type=int, default=None, help="Max objects to process (default: all)")
     parser.add_argument("--no-skip-existing", action="store_true", help="Re-embed even if text_embedding is already set")
+    parser.add_argument(
+        "--start-offset",
+        type=int,
+        default=0,
+        metavar="N",
+        help="Skip first N rows of the ordered result (PostgREST range). For resuming after "
+        "--no-skip-existing failed: use last printed 'Embedded N objects' count.",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Do not call OpenAI or update DB; show counts and cost estimate")
     parser.add_argument("--no-external", action="store_true", help="Do not include artist/VisualItem data in embedding text")
     args = parser.parse_args()
@@ -203,10 +267,8 @@ def main():
         sys.exit(1)
 
     tables = []
-    if args.table in ("on_view", "both"):
-        tables.append("objects_on_view")
-    if args.table in ("off_view", "both"):
-        tables.append("objects_off_view")
+    if args.table == "on_view":
+        tables.append("objects")
 
     for table in tables:
         try:
@@ -217,6 +279,7 @@ def main():
                 skip_existing=not args.no_skip_existing,
                 dry_run=args.dry_run,
                 include_external=not args.no_external,
+                start_offset=args.start_offset,
             )
         except Exception as e:
             print("Error processing %s: %s" % (table, e))

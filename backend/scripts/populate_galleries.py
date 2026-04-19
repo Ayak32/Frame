@@ -1,5 +1,5 @@
 """
-Populate `galleries` from distinct (floor_number, gallery_number) on `objects_on_view`.
+Populate `galleries` from distinct (floor_number, gallery_number) on `objects`.
 Skips rows with empty gallery_number. Safe to re-run: only inserts missing pairs.
 """
 import sys
@@ -19,8 +19,10 @@ def _pairs_from_objects() -> set:
     offset = 0
     while True:
         res = (
-            supabase.table("objects_on_view")
+            supabase.table("objects")
             .select("gallery_number, floor_number")
+            .eq("is_on_view", True)
+            .order("id")
             .range(offset, offset + PAGE_SIZE - 1)
             .execute()
         )
@@ -59,7 +61,7 @@ def _pairs_in_galleries() -> set:
 def main() -> None:
     from_objects = _pairs_from_objects()
     if not from_objects:
-        print("No (floor_number, gallery_number) pairs found on objects_on_view.")
+        print("No (floor_number, gallery_number) pairs found on objects.")
         return
 
     already = _pairs_in_galleries()
