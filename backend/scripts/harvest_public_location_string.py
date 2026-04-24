@@ -6,7 +6,7 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from backend.app.config import supabase
-from backend.scripts.uri_extractor import extract_image_url
+from backend.scripts.uri_extractor import extract_public_location_string
 
 PAGE_SIZE = 1000
 
@@ -15,18 +15,18 @@ PAGE_SIZE = 1000
 # so `.execute().data` still lists updated rows.
 
 
-def upsert_image_url():
+def upsert_public_location_string():
     offset = 0
     updated = 0
-    no_url = 0
     update_zero_rows = 0
     errors = 0
     total_fetched = 0
 
     while True:
         response = (
-            supabase.table('objects_on_view')
+            supabase.table('objects')
             .select('id, linked_art_json')
+            .eq('is_on_view', True)
             .order('id')
             .range(offset, offset + PAGE_SIZE - 1)
             .execute()
@@ -39,15 +39,14 @@ def upsert_image_url():
             break
 
         for row in rows:
-            image_url = extract_image_url(row.get("linked_art_json") or {})
-            if not image_url:
-                no_url += 1
+            public_location_string = extract_public_location_string(row.get("linked_art_json") or {})
+            if not public_location_string:
                 continue
 
             try:
                 upd = (
-                    supabase.table('objects_on_view')
-                    .update({'image_url': image_url})
+                    supabase.table('objects')
+                    .update({'public_location_string': public_location_string})
                     .eq('id', row['id'])
                     .execute()
                 )
@@ -70,4 +69,4 @@ def upsert_image_url():
 
 
 if __name__ == "__main__":
-    upsert_image_url()
+    upsert_public_location_string()

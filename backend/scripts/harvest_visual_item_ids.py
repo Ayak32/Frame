@@ -20,8 +20,9 @@ def upsert_visual_item_id():
 
     while True:
         response = (
-            supabase.table('objects_on_view')
+            supabase.table('objects')
             .select('id, linked_art_json')
+            .eq('is_on_view', True)
             .order('id')
             .range(offset, offset + PAGE_SIZE - 1)
             .execute()
@@ -42,7 +43,7 @@ def upsert_visual_item_id():
             if not visual_item_id:
                 continue
 
-            supabase.table('objects_on_view').update({
+            supabase.table('objects').update({
                 'visual_item_id': visual_item_id
             }).eq('id', row['id']).execute()
             updated += 1

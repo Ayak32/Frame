@@ -77,6 +77,21 @@ def _extract_uris_recursive(obj: Any, found_uris: Set[str], path: str = "") -> N
         for i, item in enumerate(obj):
             _extract_uris_recursive(item, found_uris, f"{path}[{i}]" if path else f"[{i}]")
 
+def extract_public_location_string(linked_art_json: Dict[str, Any]) -> Optional[str]:
+    """
+    Extract the public location string from the linked_art_json.
+    """
+    public_location_string = None
+    for ref in linked_art_json.get('referred_to_by', []):
+        if ref.get('type') == 'LinguisticObject':
+            content = ref.get('content', '')
+            classified_as = ref.get('classified_as', [])
+            for cls in classified_as:
+                if isinstance(cls, dict):
+                    if cls.get('id') == 'http://vocab.getty.edu/aat/300133046':
+                        public_location_string = content
+                        break
+    return public_location_string
 
 def extract_creator_uris(linked_art_json: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
@@ -198,35 +213,63 @@ def extract_external_uris(linked_art_json: Dict[str, Any]) -> List[Dict[str, Any
     
     return external_uris
 
-def extract_image_url(linked_art_json: Dict[str, Any]) -> Optional[str]:
-    """
-    Extract the image URL from the linked_art_json.
-    """
-    representation = linked_art_json.get('representation')
+def _image_url_from_representation(representation: Any) -> Optional[str]:
+    """First image access URL from a representation list (or single dict) on HumanMadeObject or VisualItem."""
+    if representation is None:
+        return None
+    if isinstance(representation, dict):
+        representation = [representation]
     if not isinstance(representation, list):
         return None
-    
+
     for rep in representation:
         if not isinstance(rep, dict):
             continue
-        
-        digitally_shown_by = rep.get('digitally_shown_by', [])
+
+        digitally_shown_by = rep.get("digitally_shown_by", [])
         if not isinstance(digitally_shown_by, list):
             continue
-        
+
         for dobj in digitally_shown_by:
             if not isinstance(dobj, dict):
                 continue
-            if dobj.get('type') != 'DigitalObject':
+            if dobj.get("type") != "DigitalObject":
                 continue
-  
-            access_point = dobj.get('access_point', [])
+
+            access_point = dobj.get("access_point", [])
             if not isinstance(access_point, list):
                 continue
-            
+
             for ap in access_point:
-                if isinstance(ap, dict) and ap.get('id'):
-                    return ap.get('id')
+                if isinstance(ap, dict) and ap.get("id"):
+                    return ap.get("id")
+    return None
+
+
+def extract_image_url(linked_art_json: Dict[str, Any]) -> Optional[str]:
+    """
+    Extract an image URL from a HumanMadeObject or VisualItem Linked Art record.
+
+    Tries ``representation`` on the root, then embedded ``shows[]`` VisualItems (some records
+    only attach ``digitally_shown_by`` on the VisualItem, not on the object).
+    """
+    url = _image_url_from_representation(linked_art_json.get("representation"))
+    if url:
+        return url
+
+    shows = linked_art_json.get("shows", [])
+    if not isinstance(shows, list):
+        return None
+
+    for show in shows:
+        if not isinstance(show, dict):
+            continue
+        st = show.get("type", "")
+        sid = show.get("id", "") or ""
+        if st == "VisualItem" or "lux/vis" in sid.lower():
+            url = _image_url_from_representation(show.get("representation"))
+            if url:
+                return url
     return None
         
     

@@ -6,8 +6,8 @@ then calls OpenAI embeddings API and writes vectors to Supabase. Supports resume
 objects that already have an embedding), dry-run, and progress/cost reporting.
 
 Verify before a full run:
-  1. Run tests: python backend/scripts/test_generate_embeddings.py (from Project, venv active)
-  2. Dry run:  --dry-run --no-skip-existing  (no API/DB writes; shows counts and cost)
+  1. Run tests: python backend/scripts/test_generate_embeddings.py (from project root, venv active)
+  2. Dry run:  python -m backend.embeddings.generate_embeddings --dry-run --no-skip-existing
   3. One object: --limit 1 --no-skip-existing then check Supabase that text_embedding is set
 
 Resume after a crash or Ctrl-C:
@@ -34,7 +34,7 @@ if str(project_root) not in sys.path:
 from dotenv import load_dotenv
 load_dotenv()
 from backend.app.config import openai_client, EMBEDDING_MODEL, supabase, BATCH_SIZE, PAGE_SIZE, COST_PER_M_TOKEN
-from backend.scripts.text_extractor import build_embedding_text_on_view
+from backend.embeddings.text_extractor import build_embedding_text_on_view
 
 
 def get_supabase():
@@ -47,14 +47,12 @@ def count_tokens_approx(text: str) -> int:
 
 
 def _select_columns(table: str) -> str:
-    """Columns needed for text extraction. objects has no curatorial_text."""
-    base = (
+    """Columns needed for text extraction (``table`` reserved for future multi-table use)."""
+    return (
         "id, title, creator_id, creator_name, classification, culture, period, materials, "
-        "linked_art_json, provenance_text, credit_line, audio_guide_url, audio_guide_transcript"
+        "linked_art_json, provenance_text, credit_line, audio_guide_url, audio_guide_transcript, "
+        "dimensions_text"
     )
-    if table == "objects":
-        return base + ", dimensions_text"
-    return base + ", curatorial_text"
 
 
 def fetch_objects(

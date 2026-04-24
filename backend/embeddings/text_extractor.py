@@ -117,10 +117,10 @@ def build_embedding_text_on_view(
     # More object fields
     _add_line(parts, "Classification", obj.get("classification"))
 
-    # Description: prefer curatorial_text, then linked_art, then dimensions
-    description = (obj.get("curatorial_text") or "").strip()
-    if not description and obj.get("linked_art_json"):
-        description = _description_from_linked_art(obj.get("linked_art_json"))
+    # Description: Linked Art referred_to_by content, else dimensions
+    description = ""
+    if obj.get("linked_art_json"):
+        description = _description_from_linked_art(obj.get("linked_art_json")).strip()
     if not description:
         description = (obj.get("dimensions_text") or "").strip()
     if description:

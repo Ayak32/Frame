@@ -103,7 +103,7 @@ CREATE INDEX IF NOT EXISTS idx_date ON objects(date_created);
 -- Embedding backfill for on-view rows only (see generate_embeddings.py).
 CREATE INDEX IF NOT EXISTS idx_objects_needs_embedding ON objects(id) WHERE text_embedding IS NULL AND is_on_view = true;
 CREATE INDEX IF NOT EXISTS idx_objects_is_on_view ON objects(is_on_view);
-CREATE INDEX IF NOT EXISTS idx_embedding ON objects USING hnsw(text_embedding vector_l2_ops);  -- Semantic search (L2 distance)
+CREATE INDEX IF NOT EXISTS idx_embedding ON objects USING hnsw(text_embedding vector_cosine_ops);  -- Semantic search (cosine distance)
 CREATE INDEX IF NOT EXISTS idx_has_audio ON objects(audio_guide_url) WHERE audio_guide_url IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_visual_item_id ON objects(visual_item_id);
 

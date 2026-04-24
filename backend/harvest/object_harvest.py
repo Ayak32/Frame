@@ -8,6 +8,8 @@ from typing import Dict, Any, List, Optional
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
+from backend.scripts.uri_extractor import extract_image_url
+
 load_dotenv()
 
 SB_URL = os.getenv("SB_URL")
@@ -136,6 +138,9 @@ def extract_object_fields(linked_art_json: Dict[str, Any]) -> Dict[str, Any]:
     # Type
     object_type = linked_art_json.get('type')
 
+    # Primary image (IIIF/access URL from representation or embedded VisualItem in shows[])
+    image_url = extract_image_url(linked_art_json)
+
     return {
         'id': linked_art_json.get('id'),
         'title': title,
@@ -155,6 +160,7 @@ def extract_object_fields(linked_art_json: Dict[str, Any]) -> Dict[str, Any]:
         'public_location_string': public_location_string if public_location_string else None,
         'audio_guide_transcript': audio_guide_transcript,
         'audio_guide_url': audio_guide_url,
+        'image_url': image_url,
     }
 
 def is_art_object_url(url: str) -> bool:
