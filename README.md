@@ -1,11 +1,11 @@
 # Frame
 
 <div align="center">
-
-[![Frame — watch demo](docs/demo-thumb.png)](https://youtu.be/-S8u6ldT0H0)
-
-
-
+  <a href="https://youtu.be/-S8u6ldT0H0">
+    <img src="docs/demo-thumb.png" alt="Frame — watch demo" width="360">
+  </a>
+  <br>
+  <a href="https://youtu.be/-S8u6ldT0H0">Watch demo</a>
 </div>
 
 ---
