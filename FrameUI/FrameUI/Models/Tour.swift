@@ -28,7 +28,6 @@ struct TourResponse: Decodable {
 struct TourStop: Decodable {
     let objectId: String
     let title: String
-//    let narrative: String
     let order: Int
     let galleryNumber: String?
 
@@ -40,7 +39,6 @@ struct TourStop: Decodable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         objectId = try c.decode(String.self, forKey: .objectId)
         title = try c.decode(String.self, forKey: .title)
-//        narrative = try c.decode(String.self, forKey: .narrative)
         order = try c.decodeLosslessInteger(forKey: .order)
         galleryNumber = try c.decodeIfPresent(String.self, forKey: .galleryNumber)
     }

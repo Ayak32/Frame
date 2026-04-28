@@ -8,7 +8,7 @@ from typing import Dict, Any, List, Optional
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
-from backend.scripts.uri_extractor import extract_image_url
+from uri_extractor import extract_image_url, extract_visual_item_uris
 
 load_dotenv()
 
@@ -141,6 +141,9 @@ def extract_object_fields(linked_art_json: Dict[str, Any]) -> Dict[str, Any]:
     # Primary image (IIIF/access URL from representation or embedded VisualItem in shows[])
     image_url = extract_image_url(linked_art_json)
 
+    visual_item_rows = extract_visual_item_uris(linked_art_json)
+    visual_item_id = visual_item_rows[0]['uri'] if visual_item_rows else None
+
     return {
         'id': linked_art_json.get('id'),
         'title': title,
@@ -161,6 +164,7 @@ def extract_object_fields(linked_art_json: Dict[str, Any]) -> Dict[str, Any]:
         'audio_guide_transcript': audio_guide_transcript,
         'audio_guide_url': audio_guide_url,
         'image_url': image_url,
+        'visual_item_id': visual_item_id,
     }
 
 def is_art_object_url(url: str) -> bool:
@@ -215,7 +219,22 @@ async def process_object(session: aiohttp.ClientSession, object_id: str, semapho
     
     # Extract fields
     fields = extract_object_fields(linked_art_json)
-    
+
+    # Many HumanMadeObject records only reference a VisualItem by id (no embedded representation).
+    # Image URLs then live on the VisualItem document; fetch it when the object has no image.
+    if not fields.get('image_url'):
+        for vis in extract_visual_item_uris(linked_art_json):
+            vis_uri = vis.get('uri')
+            if not vis_uri:
+                continue
+            vis_json = await fetch_linked_art_object(session, vis_uri, semaphore)
+            if not vis_json:
+                continue
+            url = extract_image_url(vis_json)
+            if url:
+                fields['image_url'] = url
+                break
+
     return {
         'linked_art_json': linked_art_json,
         'fields': fields,
@@ -426,7 +445,7 @@ async def harvest_all_async(start_page: Optional[int] = None):
                 print(f"Error getting next page: {e}")
                 print(f"Last successful page was {page_number - 1}")
                 print(f"You can resume from page {page_number} by running:")
-                print(f"  python scripts/harvest_parallel.py --start-page {page_number}")
+                print(f"  python -m backend.harvest.object_harvest --start-page {page_number}")
                 break
     
     print(f"\nHarvest complete")

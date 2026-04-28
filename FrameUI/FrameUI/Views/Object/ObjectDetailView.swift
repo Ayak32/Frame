@@ -13,7 +13,6 @@ struct ObjectDetailView: View {
 
     let objectId: String
     let title: String
-//    let narrative: String
     let themes: String
     let visitorQuery: String
     var context: RetrievedObjectContext? = nil
@@ -224,7 +223,7 @@ struct ObjectDetailView: View {
     private func formattedLocation(context: RetrievedObjectContext?) -> String? {
         guard let ctx = context else { return nil }
         if let loc = ctx.object.publicLocationString?.trimmingCharacters(in: .whitespacesAndNewlines), !loc.isEmpty {
-            return loc
+            return Self.locationWithCaseAppended(loc, caseNumber: ctx.object.caseNumber)
         }
         var parts: [String] = []
         if let floor = ctx.object.floorLabel?.trimmingCharacters(in: .whitespacesAndNewlines), !floor.isEmpty {
@@ -233,7 +232,19 @@ struct ObjectDetailView: View {
         if let g = ctx.object.galleryNumber?.trimmingCharacters(in: .whitespacesAndNewlines), !g.isEmpty {
             parts.append("Gallery \(g)")
         }
+        if let caseNum = ctx.object.caseNumber {
+            parts.append("Case \(caseNum)")
+        }
+
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    /// When the API sends a free-text location, still surface structured `case_number` if it is not already there.
+    private static func locationWithCaseAppended(_ location: String, caseNumber: Int?) -> String {
+        guard let cn = caseNumber else { return location }
+        let needle = "Case \(cn)"
+        if location.range(of: needle, options: .caseInsensitive) != nil { return location }
+        return "\(location) · \(needle)"
     }
 
     private func loadEnrichedDescription() async {
@@ -259,7 +270,6 @@ struct ObjectDetailView: View {
         ObjectDetailView(
             objectId: "https://example.org/obj.json",
             title: "Sample",
-//            narrative: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore.",
             themes: "",
             visitorQuery: "impressionism",
             context: nil

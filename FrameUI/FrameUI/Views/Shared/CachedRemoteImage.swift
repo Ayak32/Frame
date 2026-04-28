@@ -47,6 +47,18 @@ actor RemoteImageCache {
             throw error
         }
     }
+
+    /// Warms the cache for a set of URLs (e.g. tour thumbnails) so list rows don’t flash placeholders.
+    func prefetchImages(urls: [URL]) async {
+        let unique = Array(Set(urls))
+        await withTaskGroup(of: Void.self) { group in
+            for url in unique {
+                group.addTask {
+                    _ = try? await self.image(for: url)
+                }
+            }
+        }
+    }
 }
 
 struct CachedRemoteImage<Placeholder: View>: View {

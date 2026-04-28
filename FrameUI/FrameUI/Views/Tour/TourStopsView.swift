@@ -202,7 +202,7 @@ private func creatorSubtitle(stop: TourStop, context: RetrievedObjectContext?) -
 private func locationSubtitle(stop: TourStop, context: RetrievedObjectContext?) -> String {
     if let loc = context?.object.publicLocationString?.trimmingCharacters(in: .whitespacesAndNewlines),
        !loc.isEmpty {
-        return loc
+        return locationWithCaseAppended(loc, caseNumber: context?.object.caseNumber)
     }
     var parts: [String] = []
     if let floor = context?.object.floorLabel?.trimmingCharacters(in: .whitespacesAndNewlines), !floor.isEmpty {
@@ -213,7 +213,18 @@ private func locationSubtitle(stop: TourStop, context: RetrievedObjectContext?) 
     if let gallery, !gallery.isEmpty {
         parts.append("Gallery \(gallery)")
     }
+    if let caseNumber = context?.object.caseNumber {
+        parts.append("Case \(caseNumber)")
+    }
     return parts.isEmpty ? "Location not listed" : parts.joined(separator: " · ")
+}
+
+/// When the API sends a free-text location, still surface structured `case_number` if it is not already there.
+private func locationWithCaseAppended(_ location: String, caseNumber: Int?) -> String {
+    guard let cn = caseNumber else { return location }
+    let needle = "Case \(cn)"
+    if location.range(of: needle, options: .caseInsensitive) != nil { return location }
+    return "\(location) · \(needle)"
 }
 #Preview {
     NavigationStack {

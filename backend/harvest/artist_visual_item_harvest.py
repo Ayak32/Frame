@@ -11,7 +11,7 @@ sys.path.insert(0, str(project_root))
 
 from supabase import create_client, Client
 from dotenv import load_dotenv
-from backend.scripts.uri_extractor import (extract_creator_uris, extract_visual_item_uris)
+from backend.harvest.uri_extractor import (extract_creator_uris, extract_visual_item_uris)
 from backend.scripts.external_fetchers import (fetch_artist, fetch_visual_item, fetch_wikidata, fetch_getty_ulan, fetch_loc, extract_text_from_external_data)
 
 load_dotenv()

@@ -51,7 +51,12 @@ final class TourSession: ObservableObject {
 
        do {
            lastVisitorQuery = trimmed
-           lastResponse = try await fetchTour(request: request)
+           let response = try await fetchTour(request: request)
+           let imageURLs = response.retrievedObjects
+               .compactMap { $0.object.imageUrl }
+               .compactMap(URL.init(string:))
+           await RemoteImageCache.shared.prefetchImages(urls: imageURLs)
+           lastResponse = response
        } catch {
            lastResponse = nil
            errorMessage = error.localizedDescription

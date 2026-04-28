@@ -50,7 +50,9 @@ def _is_external_uri(uri: str) -> bool:
         return False
     
     uri_type = _classify_uri_type(uri)
-    return uri_type in ['wikidata', 'getty_ulan', 'loc', 'person', 'visual_item']
+    # Wikidata / Getty / LOC / LoC; Yale `lux/person` is included for historical behavior.
+    # Yale VisualItem (`yvisual_item`) is intentionally excluded — not an “external” authority link.
+    return uri_type in ['wikidata', 'getty_ulan', 'loc', 'person']
 
 
 def _extract_uris_recursive(obj: Any, found_uris: Set[str], path: str = "") -> None:
@@ -144,11 +146,11 @@ def extract_visual_item_uris(linked_art_json: Dict[str, Any]) -> List[Dict[str, 
         if not isinstance(show, dict):
             continue
         
-        # Check if it's a VisualItem (either by type or by URI pattern)
-        show_type = show.get('type', '')
-        show_id = show.get('id', '')
-        
-        if show_type == 'VisualItem' or 'lux/vis' in show_id.lower():
+        # Check if it's a VisualItem (either by type or by URI pattern).
+        # Yale uses .../lux/vis/.... Require non-empty id so we never store blank visual_item_id.
+        show_type = show.get('type', '') or ''
+        show_id = (show.get('id', '') or '').strip()
+        if show_id and (show_type == 'VisualItem' or 'lux/vis' in show_id.lower()):
             visual_item_uris.append({
                 'uri': show_id,
                 'type': 'yale_visual_item',
@@ -213,36 +215,41 @@ def extract_external_uris(linked_art_json: Dict[str, Any]) -> List[Dict[str, Any
     
     return external_uris
 
+def _as_list(x: Any) -> List[Any]:
+    if x is None:
+        return []
+    if isinstance(x, list):
+        return x
+    return [x]
+
+
+def _first_http_from_access_point(access_point: Any) -> Optional[str]:
+    for ap in _as_list(access_point):
+        if isinstance(ap, str) and (ap.startswith("http://") or ap.startswith("https://")):
+            return ap
+        if isinstance(ap, dict):
+            u = ap.get("id")
+            if isinstance(u, str) and (u.startswith("http://") or u.startswith("https://")):
+                return u
+    return None
+
+
 def _image_url_from_representation(representation: Any) -> Optional[str]:
     """First image access URL from a representation list (or single dict) on HumanMadeObject or VisualItem."""
     if representation is None:
         return None
-    if isinstance(representation, dict):
-        representation = [representation]
-    if not isinstance(representation, list):
-        return None
 
-    for rep in representation:
+    for rep in _as_list(representation):
         if not isinstance(rep, dict):
             continue
 
-        digitally_shown_by = rep.get("digitally_shown_by", [])
-        if not isinstance(digitally_shown_by, list):
-            continue
-
-        for dobj in digitally_shown_by:
+        # digitally_shown_by may be a dict or list; Linked Art is inconsistent across sources.
+        for dobj in _as_list(rep.get("digitally_shown_by")):
             if not isinstance(dobj, dict):
                 continue
-            if dobj.get("type") != "DigitalObject":
-                continue
-
-            access_point = dobj.get("access_point", [])
-            if not isinstance(access_point, list):
-                continue
-
-            for ap in access_point:
-                if isinstance(ap, dict) and ap.get("id"):
-                    return ap.get("id")
+            url = _first_http_from_access_point(dobj.get("access_point"))
+            if url:
+                return url
     return None
 
 

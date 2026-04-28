@@ -12,7 +12,7 @@ This module fetches data from:
 from typing import Dict, Any, List, Optional
 import requests
 import time
-from backend.scripts.uri_extractor import extract_external_uris
+from backend.harvest.uri_extractor import extract_external_uris
 
 # Wikidata and many APIs require a User-Agent; without it requests get 403.
 REQUESTS_HEADERS = {
